@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env
+.env
+.env.local
+.env.*.local
+
+# build
+dist/
+build/
+.next/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# coverage
+coverage/
+
+# cache
+.cache/
+
+# extension build (si luego generas bundles)
+apps/extension/dist/
+
+# prisma / db (cuando lo agregues)
+*.db
+*.sqlite
