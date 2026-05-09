@@ -11,6 +11,7 @@ import {
 
 const DEFAULT_TESTNET_HORIZON_URL = "https://horizon-testnet.stellar.org"
 const DEFAULT_PUBLIC_HORIZON_URL = "https://horizon.stellar.org"
+const SUPPORTED_STELLAR_NETWORKS = "testnet, public/mainnet/pubnet, futurenet, or custom"
 const TRACE_CV_ANCHOR_DATA_NAME = "tracecv:snapshot-hash"
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i
 
@@ -39,8 +40,23 @@ type StellarConfig = {
   publicKey: string
 }
 
+function isUrlLike(value: string) {
+  return /^https?:\/\//i.test(value)
+}
+
 function normalizeNetwork(value: string | undefined): StellarNetworkName {
-  const normalizedValue = value?.trim().toLowerCase()
+  const trimmedValue = value?.trim()
+  const normalizedValue = trimmedValue?.toLowerCase()
+
+  if (!normalizedValue) {
+    return "testnet"
+  }
+
+  if (isUrlLike(normalizedValue)) {
+    throw new Error(
+      `STELLAR_NETWORK must be one of ${SUPPORTED_STELLAR_NETWORKS}; received a URL. Use STELLAR_NETWORK=testnet and leave STELLAR_HORIZON_URL empty unless you are overriding it with a Horizon endpoint. https://soroban-testnet.stellar.org is a Soroban RPC endpoint, not a Horizon endpoint.`,
+    )
+  }
 
   if (
     normalizedValue === "public" ||
@@ -58,7 +74,21 @@ function normalizeNetwork(value: string | undefined): StellarNetworkName {
     return "custom"
   }
 
-  return "testnet"
+  throw new Error(
+    `Unsupported STELLAR_NETWORK "${trimmedValue}". Use one of ${SUPPORTED_STELLAR_NETWORKS}.`,
+  )
+}
+
+export function getConfiguredStellarNetworkName() {
+  return normalizeNetwork(process.env.STELLAR_NETWORK)
+}
+
+export function getStellarNetworkDisplayName() {
+  try {
+    return getConfiguredStellarNetworkName()
+  } catch {
+    return process.env.STELLAR_NETWORK?.trim() || "testnet"
+  }
 }
 
 function getNetworkPassphrase(network: StellarNetworkName) {
@@ -93,8 +123,24 @@ function getDefaultHorizonUrl(network: StellarNetworkName) {
   return DEFAULT_TESTNET_HORIZON_URL
 }
 
+function validateHorizonUrl(horizonUrl: string) {
+  let parsedUrl: URL
+
+  try {
+    parsedUrl = new URL(horizonUrl)
+  } catch {
+    throw new Error("STELLAR_HORIZON_URL must be a valid Horizon URL.")
+  }
+
+  if (parsedUrl.hostname.includes("soroban")) {
+    throw new Error(
+      `STELLAR_HORIZON_URL must point to a Horizon endpoint, not a Soroban RPC endpoint. For Stellar testnet use ${DEFAULT_TESTNET_HORIZON_URL}; do not use https://soroban-testnet.stellar.org.`,
+    )
+  }
+}
+
 function getStellarConfig(): StellarConfig {
-  const network = normalizeNetwork(process.env.STELLAR_NETWORK)
+  const network = getConfiguredStellarNetworkName()
   const secretKey = process.env.STELLAR_SECRET_KEY?.trim()
 
   if (!secretKey) {
@@ -115,14 +161,46 @@ function getStellarConfig(): StellarConfig {
     throw new Error("STELLAR_PUBLIC_KEY does not match STELLAR_SECRET_KEY.")
   }
 
+  const horizonUrl =
+    process.env.STELLAR_HORIZON_URL?.trim() || getDefaultHorizonUrl(network)
+
+  validateHorizonUrl(horizonUrl)
+
   return {
     network,
     networkPassphrase: getNetworkPassphrase(network),
-    horizonUrl:
-      process.env.STELLAR_HORIZON_URL?.trim() || getDefaultHorizonUrl(network),
+    horizonUrl,
     secretKey,
     publicKey,
   }
+}
+
+
+function getErrorStatus(error: unknown) {
+  const maybeError = error as {
+    response?: { status?: number }
+    status?: number
+  }
+
+  return maybeError.response?.status ?? maybeError.status ?? null
+}
+
+function getStellarErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return "Unknown Stellar error"
+}
+
+function toStellarAnchoringError(error: unknown, config: StellarConfig) {
+  if (getErrorStatus(error) === 404) {
+    return new Error(
+      `Stellar account ${config.publicKey} was not found on ${config.network} Horizon (${config.horizonUrl}). Fund the account on the selected network and make sure STELLAR_NETWORK is set to a network name such as testnet, not a URL. For testnet Horizon, use ${DEFAULT_TESTNET_HORIZON_URL}; https://soroban-testnet.stellar.org is Soroban RPC and cannot be used as a Horizon URL.`,
+    )
+  }
+
+  return new Error(`Stellar anchoring failed: ${getStellarErrorMessage(error)}`)
 }
 
 function validateSnapshotHash(hash: string) {
@@ -151,7 +229,15 @@ export async function anchorHashOnStellar(
   const hashBuffer = Buffer.from(hash, "hex")
   const keypair = Keypair.fromSecret(config.secretKey)
   const server = new Horizon.Server(config.horizonUrl)
-  const account = await server.loadAccount(config.publicKey)
+
+  let account: Awaited<ReturnType<typeof server.loadAccount>>
+
+  try {
+    account = await server.loadAccount(config.publicKey)
+  } catch (error) {
+    throw toStellarAnchoringError(error, config)
+  }
+
   const fee = await server.fetchBaseFee().catch(() => Number(BASE_FEE))
   const transaction = new TransactionBuilder(account, {
     fee: String(fee),
@@ -169,9 +255,16 @@ export async function anchorHashOnStellar(
 
   transaction.sign(keypair)
 
-  const submittedTransaction = await server.submitTransaction(transaction, {
-    skipMemoRequiredCheck: true,
-  })
+  let submittedTransaction: Awaited<ReturnType<typeof server.submitTransaction>>
+
+  try {
+    submittedTransaction = await server.submitTransaction(transaction, {
+      skipMemoRequiredCheck: true,
+    })
+  } catch (error) {
+    throw toStellarAnchoringError(error, config)
+  }
+
   const transactionHash = submittedTransaction.hash
 
   return {
