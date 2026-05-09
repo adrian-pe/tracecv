@@ -1,5 +1,6 @@
 import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
 import { db, type Activity } from "@/lib/db"
+import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
 import { extractSkillsFromGitHub } from "@/lib/skill-engine"
 
@@ -32,6 +33,13 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       gitHubData.topics,
       gitHubData.repositories
     )
+    const cv = generateCvFromGitHub({
+      profile: gitHubData.profile,
+      repositories: gitHubData.repositories,
+      languages: gitHubData.languages,
+      topics: gitHubData.topics,
+      skills: skillsFromGitHub
+    })
     const reposToStore = gitHubData.repositories.slice(0, 20)
 
     reposToStore.forEach((repository) => {
@@ -88,7 +96,8 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       repositoriesProcessed: reposToStore.length,
       totalRepositories: gitHubData.repositories.length,
       languages: gitHubData.languages,
-      topics: gitHubData.topics
+      topics: gitHubData.topics,
+      cv
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected GitHub processing error"
