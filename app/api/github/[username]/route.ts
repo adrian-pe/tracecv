@@ -3,6 +3,8 @@ import { db, type Activity } from "@/lib/db"
 import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
 import { extractSkillsFromGitHub } from "@/lib/skill-engine"
+import { anchorHashOnStellar } from "@/lib/stellar"
+import { createProfileSnapshot } from "@/lib/profile-snapshot"
 
 export const runtime = "nodejs"
 export const maxDuration = 10
@@ -76,6 +78,30 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       }
     })
 
+    const { hash: profileHash } = createProfileSnapshot({
+      userId,
+      skills: skillsFromGitHub,
+      activities: reposToStore
+    })
+
+    let transactionHash: string | undefined
+    let explorerUrl: string | undefined
+    let verifiedAt: string | undefined
+    let network: string | undefined
+    let verificationError: string | undefined
+
+    if (process.env.STELLAR_SECRET_KEY) {
+      try {
+        const anchorReceipt = await anchorHashOnStellar(profileHash)
+        transactionHash = anchorReceipt.transactionHash
+        explorerUrl = anchorReceipt.explorerUrl ?? undefined
+        verifiedAt = anchorReceipt.verifiedAt
+        network = anchorReceipt.network
+      } catch (anchorError) {
+        verificationError = anchorError instanceof Error ? anchorError.message : "Error al anclar en Stellar"
+      }
+    }
+
     return jsonResponse({
       success: true,
       message: `GitHub profile for "${username}" processed successfully`,
@@ -97,7 +123,13 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       totalRepositories: gitHubData.repositories.length,
       languages: gitHubData.languages,
       topics: gitHubData.topics,
-      cv
+      cv,
+      profileHash,
+      transactionHash,
+      explorerUrl,
+      verifiedAt,
+      network,
+      verificationError
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected GitHub processing error"
