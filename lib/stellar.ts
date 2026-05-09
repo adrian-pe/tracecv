@@ -58,6 +58,10 @@ function normalizeNetwork(value: string | undefined): StellarNetworkName {
     )
   }
 
+  if (normalizedValue === "testnet") {
+    return "testnet"
+  }
+
   if (
     normalizedValue === "public" ||
     normalizedValue === "mainnet" ||
