@@ -53,9 +53,6 @@ test-results/
 
 # Generated extension bundles
 apps/extension/dist/
-frontend/.next/
-frontend/out/
-backend/dist/
 
 # OS files
 .DS_Store

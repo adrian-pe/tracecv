@@ -28,7 +28,7 @@ type GitHubResponse = {
   topics: string[]
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api"
 
 function getGitHubUsername(input: string) {
   const trimmedInput = input.trim()
@@ -115,7 +115,7 @@ export default function Home() {
           <p className="eyebrow">TraceCV · GitHub Skill Scanner</p>
           <h1>Convierte un perfil de GitHub en señales claras de talento técnico.</h1>
           <p className="hero-description">
-            Pega la URL pública de GitHub de un candidato o desarrollador. TraceCV enviará el usuario al backend,
+            Pega la URL pública de GitHub de un candidato o desarrollador. TraceCV enviará el usuario a una API Route de Next.js,
             procesará repositorios, lenguajes y topics, y mostrará aquí la respuesta completa.
           </p>
 
@@ -135,7 +135,9 @@ export default function Home() {
               </button>
             </div>
             <p className="helper-text">
-              {usernamePreview ? `Se analizará el usuario: ${usernamePreview}` : "También puedes escribir solo el usuario, por ejemplo: octocat."}
+              {usernamePreview
+                ? `Se analizará el usuario: ${usernamePreview}`
+                : "También puedes escribir solo el usuario, por ejemplo: octocat."}
             </p>
           </form>
 
@@ -144,9 +146,9 @@ export default function Home() {
 
         <aside className="status-panel" aria-label="Resumen de integración">
           <span className="pulse" />
-          <strong>Backend esperado</strong>
+          <strong>API integrada</strong>
           <code>{API_BASE_URL}/github/:username</code>
-          <p>Configura NEXT_PUBLIC_API_BASE_URL si tu API corre en otra URL.</p>
+          <p>Lista para Vercel con API Routes serverless dentro de la misma app.</p>
         </aside>
       </section>
 

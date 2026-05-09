@@ -1,8 +1,8 @@
 #!/bin/bash
 # GitHub Integration Testing Script
-# Run this to test the GitHub integration endpoints
+# Run `pnpm dev` first, then execute this script from the repository root.
 
-API_URL="http://localhost:3001/api"
+API_URL="${API_URL:-http://localhost:3000/api}"
 
 echo "🧪 TraceCV GitHub Integration Tests"
 echo "===================================="

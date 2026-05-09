@@ -2,48 +2,50 @@
 
 > **Identidad profesional basada en actividad verificable, no en afirmaciones auto-reportadas.**
 
-TraceCV es un motor de prueba de habilidades que convierte actividad técnica real —repositorios, contribuciones, eventos y participación técnica— en un perfil profesional dinámico y verificable. La versión actual incluye una API en Express.js con integración de GitHub y extracción automática de skills a partir de repositorios públicos.
+TraceCV es una aplicación Next.js App Router que convierte actividad técnica real —repositorios, contribuciones, eventos y participación técnica— en un perfil profesional dinámico y verificable. La versión actual incluye UI en Next.js, API Routes serverless bajo `/app/api/*`, integración con GitHub y extracción automática de skills a partir de repositorios públicos.
 
 ## Estado actual
 
 | Área | Estado | Detalle |
 | --- | --- | --- |
-| Backend API | ✅ Implementado | API Express servida bajo `/api` en el puerto `3001` por defecto. |
+| Aplicación Next.js | ✅ Implementada | Una sola aplicación App Router lista para Vercel. |
+| API serverless | ✅ Implementada | Endpoints bajo `/api` usando Route Handlers de Next.js. |
 | Integración GitHub | ✅ Implementada | Lee perfil/repositorios públicos y detecta lenguajes, topics y tecnologías. |
-| Base de datos | ⚠️ Temporal | Persistencia en memoria; los datos se pierden al reiniciar el servidor. |
-| Frontend | 🚧 Scaffold inicial | Existe el paquete Next.js, pero la UI todavía está pendiente de implementación. |
-| Documentación | ✅ Versionada | La carpeta `docs/` contiene guías, arquitectura, ejemplos y checklist. |
+| Base de datos | ⚠️ Temporal | Persistencia en memoria; para producción se recomienda Vercel Postgres, Neon, Supabase o PlanetScale. |
+| Frontend | ✅ Implementado | UI para analizar perfiles de GitHub desde la misma aplicación. |
+| Documentación | ✅ Versionada | La carpeta `docs/` contiene guías, arquitectura, ejemplos, checklist y la guía de migración a Vercel. |
 
 ## Estructura del proyecto
 
 ```text
 tracecv/
-├── backend/                 # API Express.js
-│   ├── src/
-│   │   ├── index.js         # Entrada del servidor
-│   │   ├── routes.js        # Endpoints de la API
-│   │   ├── skillEngine.js   # Extracción de habilidades
-│   │   ├── githubService.js # Cliente e integración con GitHub
-│   │   └── db.js            # Almacenamiento en memoria
-│   └── package.json
-├── frontend/                # Paquete Next.js para la futura UI
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── README.md
-├── docs/                    # Documentación del proyecto
-│   ├── architecture/
-│   ├── examples/
-│   ├── guides/
-│   └── DOCUMENTATION_INDEX.md
-├── package.json             # Metadatos del monorepo
-├── pnpm-workspace.yaml      # Workspaces de pnpm
-├── pnpm-lock.yaml           # Lockfile de dependencias
-└── README.md
+├── app/
+│   ├── api/
+│   │   ├── activities/route.ts
+│   │   ├── github/[username]/route.ts
+│   │   ├── profile/[userId]/route.ts
+│   │   └── route.ts
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── lib/
+│   ├── api.ts
+│   ├── db.ts
+│   ├── github-service.ts
+│   └── skill-engine.ts
+├── docs/
+├── middleware.ts
+├── next.config.js
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── tsconfig.json
+└── vercel.json
 ```
 
 ## Requisitos
 
-- Node.js 18 o superior
+- Node.js 20 o superior
 - pnpm 10 o superior
 - Opcional: token de GitHub para aumentar límites de rate limit
 
@@ -55,51 +57,42 @@ pnpm install
 
 ## Configuración
 
-El backend carga variables de entorno con `dotenv`. Crea un archivo `backend/.env` si necesitas sobrescribir valores locales:
+Copia el ejemplo de variables de entorno si necesitas valores locales:
 
 ```bash
-cp backend/.env.example backend/.env
+cp .env.example .env.local
 ```
 
 Variables útiles:
 
 | Variable | Requerida | Descripción |
 | --- | --- | --- |
-| `PORT` | No | Puerto del backend. Por defecto: `3001`. |
-| `GITHUB_TOKEN` | No | Token personal de GitHub para subir límites de la API. |
+| `GITHUB_TOKEN` | No | Token personal de GitHub usado solo del lado servidor para subir límites de la API. |
 | `GITHUB_API_BASE_URL` | No | URL base de GitHub API. Por defecto: `https://api.github.com`. |
+| `CORS_ALLOWED_ORIGINS` | No | Lista separada por comas de orígenes permitidos para `/api`. |
+| `NEXT_PUBLIC_API_BASE_URL` | No | La UI usa `/api` por defecto; configúrala solo si necesitas llamar otra API. |
 
-> Nota: los archivos `.env` no deben subirse al repositorio.
+> Nota: los archivos `.env*` locales no deben subirse al repositorio.
 
 ## Uso en desarrollo
 
-### Backend
-
 ```bash
-pnpm --filter api dev
-```
-
-La API queda disponible en:
-
-- `GET http://localhost:3001/`
-- Endpoints bajo `http://localhost:3001/api`
-
-También puedes ejecutar desde la carpeta del backend:
-
-```bash
-cd backend
 pnpm dev
 ```
 
-### Frontend
+La aplicación queda disponible en:
 
-El paquete `frontend/` contiene la configuración inicial de Next.js. Cuando la UI tenga archivos de aplicación, podrá ejecutarse con:
-
-```bash
-pnpm --filter tracecv-frontend dev
-```
+- UI: `http://localhost:3000`
+- API health: `GET http://localhost:3000/api`
+- Endpoints bajo `http://localhost:3000/api/*`
 
 ## Endpoints principales
+
+### Health check
+
+```http
+GET /api
+```
 
 ### Crear una actividad manual
 
@@ -125,7 +118,7 @@ GET /api/profile/:userId
 Ejemplo:
 
 ```bash
-curl http://localhost:3001/api/profile/1
+curl http://localhost:3000/api/profile/1
 ```
 
 ### Procesar perfil de GitHub
@@ -142,10 +135,40 @@ Content-Type: application/json
 Ejemplo:
 
 ```bash
-curl -X POST http://localhost:3001/api/github/octocat \
+curl -X POST http://localhost:3000/api/github/octocat \
   -H "Content-Type: application/json" \
   -d '{"userId": 1}'
 ```
+
+## Scripts útiles
+
+```bash
+# Instalar dependencias
+pnpm install
+
+# Levantar la aplicación Next.js
+pnpm dev
+
+# Validar tipos
+pnpm typecheck
+
+# Crear build de producción
+pnpm build
+
+# Ejecutar script manual de prueba de GitHub con pnpm dev activo
+chmod +x test-github-integration.sh
+./test-github-integration.sh
+```
+
+## Deploy en Vercel
+
+1. Conecta este repositorio como un proyecto Next.js en Vercel.
+2. Usa la raíz del repositorio como root directory.
+3. Mantén `pnpm install` como install command y `pnpm build` como build command.
+4. Agrega `GITHUB_TOKEN` si necesitas mayores límites de GitHub API.
+5. Despliega y prueba `https://your-app.vercel.app/api`.
+
+Consulta la guía completa en [docs/deployment/NEXTJS_VERCEL_MIGRATION.md](./docs/deployment/NEXTJS_VERCEL_MIGRATION.md).
 
 ## Cómo funciona
 
@@ -156,59 +179,17 @@ Actividad real → Ingesta de datos → Extracción de skills → Perfil dinámi
 1. Un usuario realiza actividad técnica real.
 2. TraceCV recibe la actividad manualmente o desde integraciones como GitHub.
 3. El motor de skills detecta lenguajes, frameworks, tecnologías y especializaciones.
-4. La API agrega actividades y skills en un perfil consultable.
-
-## Documentación
-
-La carpeta `docs/` **sí conviene subirla al repositorio** porque contiene contexto útil para instalación, arquitectura, ejemplos y decisiones del proyecto. No debe ignorarse salvo que en el futuro incluya artefactos generados, credenciales, dumps, reportes pesados o archivos privados.
-
-Documentos destacados:
-
-- [Índice de documentación](./docs/DOCUMENTATION_INDEX.md)
-- [Guía rápida](./docs/guides/QUICK_START.md)
-- [Configuración de GitHub](./docs/guides/GITHUB_SETUP.md)
-- [Arquitectura](./docs/architecture/ARCHITECTURE.md)
-- [Ejemplos de API](./docs/examples/API_EXAMPLES.md)
-
-## Seguridad y control de versiones
-
-- ✅ Sube documentación, código fuente, scripts y lockfiles.
-- ✅ Sube `pnpm-lock.yaml` para builds reproducibles.
-- ❌ No subas `.env`, tokens, claves privadas, dumps locales o bases de datos de desarrollo.
-- ❌ No subas `node_modules/`, builds (`dist/`, `.next/`, `out/`) ni caches.
-- ⚠️ Si agregas archivos dentro de `docs/`, revisa que no contengan secretos ni datos personales.
-
-## Scripts útiles
-
-```bash
-# Instalar dependencias del monorepo
-pnpm install
-
-# Levantar backend en desarrollo
-pnpm --filter api dev
-
-# Ejecutar script manual de prueba de GitHub
-chmod +x test-github-integration.sh
-./test-github-integration.sh
-```
+4. Las API Routes agregan actividades y skills en un perfil consultable.
 
 ## Roadmap
 
-- [ ] Implementar UI de frontend en Next.js
-- [ ] Agregar autenticación de usuarios
 - [ ] Reemplazar almacenamiento en memoria por base de datos persistente
+- [ ] Agregar autenticación de usuarios
 - [ ] Mejorar scoring y deduplicación de skills
 - [ ] Agregar integración con eventos técnicos
 - [ ] Publicar perfiles públicos
 - [ ] Exportar perfil en JSON/PDF
 - [ ] Explorar verificación blockchain con Stellar
-
-## Contribución
-
-1. Crea una rama para tu cambio.
-2. Mantén documentación y README actualizados cuando cambie el comportamiento.
-3. No incluyas secretos ni archivos generados.
-4. Ejecuta las pruebas/checks disponibles antes de abrir un PR.
 
 ## Licencia
 
