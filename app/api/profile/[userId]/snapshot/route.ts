@@ -1,4 +1,4 @@
-import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
+import { jsonResponse, optionsResponse } from "@/lib/api"
 import { db } from "@/lib/db"
 import { createProfileSnapshot } from "@/lib/profile-snapshot"
 
@@ -11,7 +11,7 @@ type ProfileSnapshotRouteContext = {
 }
 
 export function GET(_request: Request, { params }: ProfileSnapshotRouteContext) {
-  const userId = parseUserId(params.userId)
+  const userId = decodeURIComponent(params.userId)
   const activities = db.activities.filter((activity) => activity.userId === userId)
   const skills = db.userSkills.filter((userSkill) => userSkill.userId === userId).map((userSkill) => userSkill.skill)
   const { snapshot, hash } = createProfileSnapshot({

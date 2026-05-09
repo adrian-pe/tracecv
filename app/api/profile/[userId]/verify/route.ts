@@ -1,4 +1,5 @@
-import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
+import { jsonResponse, optionsResponse } from "@/lib/api"
+import { requireAuthenticatedUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { createProfileSnapshot } from "@/lib/profile-snapshot"
 import { anchorHashOnStellar } from "@/lib/stellar"
@@ -11,52 +12,29 @@ type ProfileVerifyRouteContext = {
   }
 }
 
-function getVerificationSecret() {
-  return (
-    process.env.PROFILE_VERIFY_SECRET?.trim() ||
-    process.env.VERIFY_API_SECRET?.trim() ||
-    null
-  )
-}
-
-function getBearerToken(request: Request) {
-  const authorizationHeader = request.headers.get("authorization")
-
-  if (!authorizationHeader?.startsWith("Bearer ")) {
-    return null
-  }
-
-  return authorizationHeader.slice("Bearer ".length).trim()
-}
-
-function isVerificationRequestAuthorized(request: Request) {
-  const verificationSecret = getVerificationSecret()
-
-  if (!verificationSecret) {
-    return false
-  }
-
-  return (
-    getBearerToken(request) === verificationSecret ||
-    request.headers.get("x-tracecv-verify-secret") === verificationSecret
-  )
-}
-
 export async function POST(
   request: Request,
   { params }: ProfileVerifyRouteContext,
 ) {
-  if (!isVerificationRequestAuthorized(request)) {
+  const { user, response } = await requireAuthenticatedUser(request)
+
+  if (!user) {
+    return response
+  }
+
+  const requestedUserId = decodeURIComponent(params.userId)
+
+  if (requestedUserId !== user.id) {
     return jsonResponse(
       {
-        error:
-          "Profile verification is protected. Configure authentication before allowing Stellar anchoring requests.",
+        success: false,
+        error: "Cannot verify a profile for a different authenticated user."
       },
-      { status: getVerificationSecret() ? 401 : 503 },
+      { status: 403 }
     )
   }
 
-  const userId = parseUserId(params.userId)
+  const userId = user.id
   const activities = db.activities.filter(
     (activity) => activity.userId === userId,
   )

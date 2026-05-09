@@ -1,11 +1,11 @@
-import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
+import { jsonResponse, optionsResponse } from "@/lib/api"
+import { requireAuthenticatedUser } from "@/lib/auth"
 import { db, type Activity } from "@/lib/db"
 import { extractSkills } from "@/lib/skill-engine"
 
 export const runtime = "nodejs"
 
 type CreateActivityRequest = {
-  userId?: number | string
   type?: string
   source?: string
   title?: string
@@ -13,6 +13,12 @@ type CreateActivityRequest = {
 }
 
 export async function POST(request: Request) {
+  const { user, response } = await requireAuthenticatedUser(request)
+
+  if (!user) {
+    return response
+  }
+
   const body = (await request.json().catch(() => ({}))) as CreateActivityRequest
 
   if (!body.title) {
@@ -21,7 +27,7 @@ export async function POST(request: Request) {
 
   const activity: Activity = {
     id: Date.now(),
-    userId: parseUserId(body.userId),
+    userId: user.id,
     type: body.type,
     source: body.source,
     title: body.title,

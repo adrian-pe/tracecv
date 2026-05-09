@@ -1,6 +1,6 @@
 export type Activity = {
   id: number | string
-  userId: number
+  userId: string
   type?: string
   source?: string
   title: string
@@ -13,7 +13,7 @@ export type Activity = {
 }
 
 export type UserSkill = {
-  userId: number
+  userId: string
   skill: string
   activityId?: number | string
   source?: string

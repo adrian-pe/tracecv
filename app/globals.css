@@ -591,3 +591,55 @@ h2 {
     height: 104px;
   }
 }
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.auth-card {
+  grid-template-columns: 1fr;
+  width: min(780px, 100%);
+}
+
+.auth-session-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin-top: 24px;
+  padding: 14px 16px;
+  background: rgba(34, 211, 238, 0.1);
+  color: #dbeafe;
+  font-weight: 800;
+}
+
+.auth-session-banner button,
+.link-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(2, 6, 23, 0.48);
+  color: #67e8f9;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.link-button {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.success-message {
+  margin-top: 20px;
+  border: 1px solid rgba(134, 239, 172, 0.32);
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: rgba(22, 101, 52, 0.24);
+  color: #bbf7d0;
+  font-weight: 700;
+}
