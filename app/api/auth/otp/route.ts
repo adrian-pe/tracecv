@@ -12,16 +12,28 @@ export async function POST(request: Request) {
   const email = body.email?.trim().toLowerCase()
 
   if (!email) {
-    return jsonResponse({ success: false, error: "Email is required" }, { status: 400 })
+    return jsonResponse(
+      { success: false, error: "Email is required" },
+      { status: 400 },
+    )
   }
 
   try {
     await requestEmailOtp(email)
-    return jsonResponse({ success: true, message: "OTP enviado. Revisa tu email para continuar." })
+    return jsonResponse({
+      success: true,
+      message: "Código enviado. Revisa tu email para continuar.",
+    })
   } catch (error) {
     return jsonResponse(
-      { success: false, error: error instanceof Error ? error.message : "No se pudo enviar el OTP." },
-      { status: 400 }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo enviar el código de verificación.",
+      },
+      { status: 400 },
     )
   }
 }

@@ -90,7 +90,7 @@ type AuthenticatedUser = {
 }
 
 type HomeClientProps = {
-  user: AuthenticatedUser
+  user: AuthenticatedUser | null
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api"
@@ -102,7 +102,9 @@ function getGitHubUsername(input: string) {
     return ""
   }
 
-  const withProtocol = /^https?:\/\//i.test(trimmedInput) ? trimmedInput : `https://${trimmedInput}`
+  const withProtocol = /^https?:\/\//i.test(trimmedInput)
+    ? trimmedInput
+    : `https://${trimmedInput}`
 
   try {
     const url = new URL(withProtocol)
@@ -123,36 +125,64 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat("es", {
     year: "numeric",
     month: "long",
-    day: "numeric"
+    day: "numeric",
   }).format(new Date(date))
 }
 
 function groupTechnicalSkills(skills: string[]): SkillGroup[] {
   const categories = [
-    { title: "Frontend", pattern: /(react|next|vue|angular|javascript|typescript|css|html|tailwind|ui|frontend)/i },
-    { title: "Backend y APIs", pattern: /(node|express|api|rest|graphql|backend|java|go|php|ruby|server)/i },
-    { title: "Datos e IA", pattern: /(python|data|sql|postgres|mysql|mongo|machine|ai|ml|analytics)/i },
-    { title: "Cloud, DevOps y tooling", pattern: /(docker|kubernetes|aws|azure|gcp|ci|cd|devops|linux|terraform|vercel)/i }
+    {
+      title: "Frontend",
+      pattern:
+        /(react|next|vue|angular|javascript|typescript|css|html|tailwind|ui|frontend)/i,
+    },
+    {
+      title: "Backend y APIs",
+      pattern:
+        /(node|express|api|rest|graphql|backend|java|go|php|ruby|server)/i,
+    },
+    {
+      title: "Datos e IA",
+      pattern:
+        /(python|data|sql|postgres|mysql|mongo|machine|ai|ml|analytics)/i,
+    },
+    {
+      title: "Cloud, DevOps y tooling",
+      pattern:
+        /(docker|kubernetes|aws|azure|gcp|ci|cd|devops|linux|terraform|vercel)/i,
+    },
   ]
 
   const groupedSkills = categories.map((category) => ({
     title: category.title,
-    skills: skills.filter((skill) => category.pattern.test(skill))
+    skills: skills.filter((skill) => category.pattern.test(skill)),
   }))
 
-  const groupedSkillNames = new Set(groupedSkills.flatMap((group) => group.skills))
+  const groupedSkillNames = new Set(
+    groupedSkills.flatMap((group) => group.skills),
+  )
   const otherSkills = skills.filter((skill) => !groupedSkillNames.has(skill))
 
   return [
     ...groupedSkills.filter((group) => group.skills.length > 0),
-    ...(otherSkills.length > 0 ? [{ title: "Otras habilidades", skills: otherSkills }] : [])
+    ...(otherSkills.length > 0
+      ? [{ title: "Otras habilidades", skills: otherSkills }]
+      : []),
   ]
 }
 
-function getVerificationSummary(result: GitHubResponse | null): VerificationSummary {
+function getVerificationSummary(
+  result: GitHubResponse | null,
+): VerificationSummary {
   const verification = result?.verification
-  const profileHash = result?.profileHash ?? result?.hash ?? verification?.profileHash ?? verification?.hash ?? null
-  const transactionHash = result?.transactionHash ?? verification?.transactionHash ?? null
+  const profileHash =
+    result?.profileHash ??
+    result?.hash ??
+    verification?.profileHash ??
+    verification?.hash ??
+    null
+  const transactionHash =
+    result?.transactionHash ?? verification?.transactionHash ?? null
   const explorerUrl = result?.explorerUrl ?? verification?.explorerUrl ?? null
   const error = result?.verificationError ?? verification?.error ?? null
 
@@ -165,7 +195,7 @@ function getVerificationSummary(result: GitHubResponse | null): VerificationSumm
       explorerUrl,
       error,
       status: "error",
-      label: "Error de verificación"
+      label: "Error de verificación",
     }
   }
 
@@ -178,7 +208,7 @@ function getVerificationSummary(result: GitHubResponse | null): VerificationSumm
       explorerUrl,
       error: null,
       status: "anchored",
-      label: "Anclado on-chain"
+      label: "Anclado on-chain",
     }
   }
 
@@ -191,7 +221,7 @@ function getVerificationSummary(result: GitHubResponse | null): VerificationSumm
       explorerUrl: null,
       error: null,
       status: "hash-generated",
-      label: "Hash generado"
+      label: "Hash generado",
     }
   }
 
@@ -203,20 +233,30 @@ function getVerificationSummary(result: GitHubResponse | null): VerificationSumm
     explorerUrl: null,
     error: null,
     status: "unverified",
-    label: "No verificado"
+    label: "No verificado",
   }
 }
 
 export default function HomeClient({ user }: HomeClientProps) {
+  const isAuthenticated = Boolean(user)
   const [githubUrl, setGithubUrl] = useState("")
   const [result, setResult] = useState<GitHubResponse | null>(null)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [copyStatus, setCopyStatus] = useState("")
 
-  const usernamePreview = useMemo(() => getGitHubUsername(githubUrl), [githubUrl])
-  const technicalSkillGroups = useMemo(() => groupTechnicalSkills(result?.cv.technicalSkills ?? []), [result])
-  const verificationSummary = useMemo(() => getVerificationSummary(result), [result])
+  const usernamePreview = useMemo(
+    () => getGitHubUsername(githubUrl),
+    [githubUrl],
+  )
+  const technicalSkillGroups = useMemo(
+    () => groupTechnicalSkills(result?.cv.technicalSkills ?? []),
+    [result],
+  )
+  const verificationSummary = useMemo(
+    () => getVerificationSummary(result),
+    [result],
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -235,21 +275,29 @@ export default function HomeClient({ user }: HomeClientProps) {
     setResult(null)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/github/${encodeURIComponent(username)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+      const response = await fetch(
+        `${API_BASE_URL}/github/${encodeURIComponent(username)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      })
+      )
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error ?? "No se pudo procesar el perfil de GitHub.")
+        throw new Error(
+          data.error ?? "No se pudo procesar el perfil de GitHub.",
+        )
       }
 
       setResult(data)
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "Ocurrió un error inesperado."
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Ocurrió un error inesperado."
       setError(message)
     } finally {
       setIsLoading(false)
@@ -273,25 +321,35 @@ export default function HomeClient({ user }: HomeClientProps) {
     <main className="page-shell">
       <section className="hero-card">
         <div className="hero-content">
-          <p className="eyebrow">TraceCV · Generador de CV técnico desde GitHub</p>
-          <h1>Convierte un perfil de GitHub en un CV técnico listo para revisar.</h1>
+          <p className="eyebrow">
+            TraceCV · Generador de CV técnico desde GitHub
+          </p>
+          <h1>
+            Convierte un perfil de GitHub en un CV técnico listo para revisar.
+          </h1>
           <p className="hero-description">
-            Pega la URL pública de GitHub de un candidato o desarrollador. TraceCV analizará repositorios, lenguajes y topics
-            para construir un resumen profesional, skills técnicas, proyectos destacados y roles sugeridos.
+            Pega la URL pública de GitHub de un candidato o desarrollador.
+            TraceCV analiza repositorios, lenguajes, topics y señales de
+            actividad para construir un resumen profesional, skills técnicas,
+            proyectos destacados y roles sugeridos. Prueba el generador sin
+            crear una cuenta; cuando veas el resultado podrás conectarte con tu
+            email para guardar y verificar tu perfil.
           </p>
 
-          <div className="auth-session-banner">
-            <span>Sesión activa: {user.email ?? user.id}</span>
-            <button
-              onClick={async () => {
-                await fetch("/api/auth/logout", { method: "POST" })
-                window.location.href = "/login"
-              }}
-              type="button"
-            >
-              Cerrar sesión
-            </button>
-          </div>
+          {user ? (
+            <div className="auth-session-banner">
+              <span>Sesión activa: {user.email ?? user.id}</span>
+              <button
+                onClick={async () => {
+                  await fetch("/api/auth/logout", { method: "POST" })
+                  window.location.href = "/"
+                }}
+                type="button"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          ) : null}
 
           <form className="github-form" onSubmit={handleSubmit}>
             <label htmlFor="github-url">URL de GitHub</label>
@@ -320,9 +378,12 @@ export default function HomeClient({ user }: HomeClientProps) {
 
         <aside className="status-panel" aria-label="Resumen de integración">
           <span className="pulse" />
-          <strong>API integrada</strong>
+          <strong>Prueba inmediata</strong>
           <code>{API_BASE_URL}/github/:username</code>
-          <p>Lista para Vercel con API Routes serverless dentro de la misma app.</p>
+          <p>
+            Genera una vista previa pública sin autenticación. Con email puedes
+            guardar evidencias y continuar.
+          </p>
         </aside>
       </section>
 
@@ -342,11 +403,15 @@ export default function HomeClient({ user }: HomeClientProps) {
                 <p className="cv-headline">{result.cv.headline}</p>
                 <div className="cv-meta">
                   <span>@{result.user.username}</span>
-                  {result.user.profile.location ? <span>{result.user.profile.location}</span> : null}
+                  {result.user.profile.location ? (
+                    <span>{result.user.profile.location}</span>
+                  ) : null}
                   <span>{result.user.profile.public_repos} repos públicos</span>
                   <span>{result.user.profile.followers} seguidores</span>
                 </div>
-                {result.user.profile.bio ? <p className="muted">{result.user.profile.bio}</p> : null}
+                {result.user.profile.bio ? (
+                  <p className="muted">{result.user.profile.bio}</p>
+                ) : null}
                 <a
                   className="github-link"
                   href={`https://github.com/${result.user.username}`}
@@ -385,7 +450,9 @@ export default function HomeClient({ user }: HomeClientProps) {
                   ))}
                 </div>
               ) : (
-                <p className="muted">No se detectaron skills técnicas para este perfil.</p>
+                <p className="muted">
+                  No se detectaron skills técnicas para este perfil.
+                </p>
               )}
             </section>
 
@@ -400,16 +467,27 @@ export default function HomeClient({ user }: HomeClientProps) {
                     <article className="cv-project" key={project.url}>
                       <div>
                         <h4>
-                          <a href={project.url} rel="noreferrer" target="_blank">
+                          <a
+                            href={project.url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
                             {project.name}
                           </a>
                         </h4>
-                        <p>{project.description ?? "Repositorio público sin descripción."}</p>
+                        <p>
+                          {project.description ??
+                            "Repositorio público sin descripción."}
+                        </p>
                       </div>
                       <div className="cv-project-meta">
-                        {project.language ? <span>{project.language}</span> : null}
+                        {project.language ? (
+                          <span>{project.language}</span>
+                        ) : null}
                         <span>{project.stars} ★</span>
-                        <span>Actualizado: {formatDate(project.updatedAt)}</span>
+                        <span>
+                          Actualizado: {formatDate(project.updatedAt)}
+                        </span>
                       </div>
                       {project.topics.length ? (
                         <div className="chip-list secondary">
@@ -422,7 +500,9 @@ export default function HomeClient({ user }: HomeClientProps) {
                   ))}
                 </div>
               ) : (
-                <p className="muted">No hay proyectos públicos para destacar.</p>
+                <p className="muted">
+                  No hay proyectos públicos para destacar.
+                </p>
               )}
             </section>
 
@@ -458,57 +538,110 @@ export default function HomeClient({ user }: HomeClientProps) {
           <article className="metric-card" aria-label="Repositorios procesados">
             <p className="eyebrow">Repositorios procesados</p>
             <strong>{result.repositoriesProcessed}</strong>
-            <span>de {result.totalRepositories} repositorios públicos analizados</span>
+            <span>
+              de {result.totalRepositories} repositorios públicos analizados
+            </span>
           </article>
 
           <article className="metric-card" aria-label="Lenguajes detectados">
             <p className="eyebrow">Lenguajes detectados</p>
             <strong>{result.languages.length}</strong>
-            <span>{result.languages.length ? result.languages.slice(0, 4).join(", ") : "Sin lenguajes detectados"}</span>
+            <span>
+              {result.languages.length
+                ? result.languages.slice(0, 4).join(", ")
+                : "Sin lenguajes detectados"}
+            </span>
           </article>
 
-          <article className={`verification-card verification-card--${verificationSummary.status}`} aria-label="Evidencia verificable del perfil">
-            <div className="verification-card-header">
-              <div>
-                <p className="eyebrow">Evidencia verificable</p>
-                <h3>{verificationSummary.label}</h3>
-              </div>
-              <span className="verification-status-dot" aria-hidden="true" />
-            </div>
+          {!isAuthenticated ? (
+            <article
+              className="auth-cta-card"
+              aria-label="Conectarse con email"
+            >
+              <p className="eyebrow">Siguiente paso</p>
+              <h3>¿Quieres guardar y verificar este CV?</h3>
+              <p>
+                Ya viste cómo TraceCV convierte GitHub en un perfil técnico.
+                Conéctate con tu email para recibir un código de verificación,
+                guardar el resultado y habilitar la evidencia verificable.
+              </p>
+              <a href="/login">Conectarse con email</a>
+            </article>
+          ) : null}
 
-            <dl className="verification-details">
-              <div>
-                <dt>profileHash</dt>
-                <dd>{verificationSummary.profileHash ?? "Pendiente de generación"}</dd>
+          {isAuthenticated ? (
+            <article
+              className={`verification-card verification-card--${verificationSummary.status}`}
+              aria-label="Evidencia verificable del perfil"
+            >
+              <div className="verification-card-header">
+                <div>
+                  <p className="eyebrow">Evidencia verificable</p>
+                  <h3>{verificationSummary.label}</h3>
+                </div>
+                <span className="verification-status-dot" aria-hidden="true" />
               </div>
-              <div>
-                <dt>verifiedAt</dt>
-                <dd>{verificationSummary.verifiedAt ? formatDate(verificationSummary.verifiedAt) : "Sin fecha de verificación"}</dd>
-              </div>
-              <div>
-                <dt>network</dt>
-                <dd>{verificationSummary.network ?? "Sin red blockchain"}</dd>
-              </div>
-              <div>
-                <dt>transactionHash</dt>
-                <dd>{verificationSummary.transactionHash ?? "Sin transacción"}</dd>
-              </div>
-            </dl>
 
-            {verificationSummary.error ? <p className="verification-error">{verificationSummary.error}</p> : null}
+              <dl className="verification-details">
+                <div>
+                  <dt>profileHash</dt>
+                  <dd>
+                    {verificationSummary.profileHash ??
+                      "Pendiente de generación"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>verifiedAt</dt>
+                  <dd>
+                    {verificationSummary.verifiedAt
+                      ? formatDate(verificationSummary.verifiedAt)
+                      : "Sin fecha de verificación"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>network</dt>
+                  <dd>{verificationSummary.network ?? "Sin red blockchain"}</dd>
+                </div>
+                <div>
+                  <dt>transactionHash</dt>
+                  <dd>
+                    {verificationSummary.transactionHash ?? "Sin transacción"}
+                  </dd>
+                </div>
+              </dl>
 
-            <div className="verification-actions">
-              <button disabled={!verificationSummary.profileHash} onClick={handleCopyProfileHash} type="button">
-                Copiar hash
-              </button>
-              {verificationSummary.transactionHash && verificationSummary.explorerUrl ? (
-                <a href={verificationSummary.explorerUrl} rel="noreferrer" target="_blank">
-                  Ver transacción
-                </a>
+              {verificationSummary.error ? (
+                <p className="verification-error">
+                  {verificationSummary.error}
+                </p>
               ) : null}
-            </div>
-            {copyStatus ? <p className="copy-status" role="status">{copyStatus}</p> : null}
-          </article>
+
+              <div className="verification-actions">
+                <button
+                  disabled={!verificationSummary.profileHash}
+                  onClick={handleCopyProfileHash}
+                  type="button"
+                >
+                  Copiar hash
+                </button>
+                {verificationSummary.transactionHash &&
+                verificationSummary.explorerUrl ? (
+                  <a
+                    href={verificationSummary.explorerUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Ver transacción
+                  </a>
+                ) : null}
+              </div>
+              {copyStatus ? (
+                <p className="copy-status" role="status">
+                  {copyStatus}
+                </p>
+              ) : null}
+            </article>
+          ) : null}
 
           <details className="json-card">
             <summary>Ver JSON crudo para depuración</summary>

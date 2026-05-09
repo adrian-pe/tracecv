@@ -1,4 +1,5 @@
-const GITHUB_API_BASE_URL = process.env.GITHUB_API_BASE_URL ?? "https://api.github.com"
+const GITHUB_API_BASE_URL =
+  process.env.GITHUB_API_BASE_URL ?? "https://api.github.com"
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 
 export type GitHubProfile = {
@@ -30,7 +31,7 @@ export type EnrichedGitHubData = {
   languages: string[]
   topics: string[]
   username: string
-  userId: string
+  userId: string | null
 }
 
 type GitHubErrorPayload = {
@@ -40,18 +41,20 @@ type GitHubErrorPayload = {
 function createGitHubHeaders() {
   return {
     Accept: "application/vnd.github.v3+json",
-    ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {})
+    ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}),
   }
 }
 
 async function requestGitHub<T>(path: string): Promise<T> {
   const response = await fetch(`${GITHUB_API_BASE_URL}${path}`, {
     headers: createGitHubHeaders(),
-    next: { revalidate: 60 }
+    next: { revalidate: 60 },
   })
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as GitHubErrorPayload
+    const payload = (await response
+      .json()
+      .catch(() => ({}))) as GitHubErrorPayload
     const reason = payload.message ?? response.statusText
 
     if (response.status === 404) {
@@ -64,11 +67,18 @@ async function requestGitHub<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function fetchUserProfile(username: string): Promise<GitHubProfile> {
+export async function fetchUserProfile(
+  username: string,
+): Promise<GitHubProfile> {
   try {
-    return await requestGitHub<GitHubProfile>(`/users/${encodeURIComponent(username)}`)
+    return await requestGitHub<GitHubProfile>(
+      `/users/${encodeURIComponent(username)}`,
+    )
   } catch (error) {
-    if (error instanceof Error && error.message === "GitHub resource not found") {
+    if (
+      error instanceof Error &&
+      error.message === "GitHub resource not found"
+    ) {
       throw new Error(`GitHub user "${username}" not found`)
     }
 
@@ -76,16 +86,21 @@ export async function fetchUserProfile(username: string): Promise<GitHubProfile>
   }
 }
 
-export async function fetchUserRepositories(username: string): Promise<GitHubRepository[]> {
+export async function fetchUserRepositories(
+  username: string,
+): Promise<GitHubRepository[]> {
   return requestGitHub<GitHubRepository[]>(
-    `/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&direction=desc`
+    `/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&direction=desc`,
   )
 }
 
-export async function enrichGitHubData(username: string, userId: string): Promise<EnrichedGitHubData> {
+export async function enrichGitHubData(
+  username: string,
+  userId: string | null,
+): Promise<EnrichedGitHubData> {
   const [profile, repositories] = await Promise.all([
     fetchUserProfile(username),
-    fetchUserRepositories(username)
+    fetchUserRepositories(username),
   ])
 
   const languages = new Set<string>()
@@ -107,6 +122,6 @@ export async function enrichGitHubData(username: string, userId: string): Promis
     languages: Array.from(languages),
     topics: Array.from(topics),
     username,
-    userId
+    userId,
   }
 }

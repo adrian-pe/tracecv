@@ -41,7 +41,7 @@ function getAuthHeaders(anonKey: string, accessToken?: string) {
   return {
     apikey: anonKey,
     Authorization: `Bearer ${accessToken ?? anonKey}`,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   }
 }
 
@@ -49,14 +49,16 @@ function getSupabaseError(payload: SupabaseVerifyResponse, fallback: string) {
   return payload.error_description ?? payload.msg ?? payload.error ?? fallback
 }
 
-function normalizeUser(user: SupabaseUserResponse | null | undefined): AuthenticatedUser | null {
+function normalizeUser(
+  user: SupabaseUserResponse | null | undefined,
+): AuthenticatedUser | null {
   if (!user?.id) {
     return null
   }
 
   return {
     id: user.id,
-    email: user.email ?? null
+    email: user.email ?? null,
   }
 }
 
@@ -87,7 +89,9 @@ export async function requestEmailOtp(email: string) {
   const config = getSupabaseConfig()
 
   if (!config) {
-    throw new Error("Supabase Auth no está configurado. Define NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.")
+    throw new Error(
+      "Supabase Auth no está configurado. Define NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+    )
   }
 
   const response = await fetch(`${config.url}/auth/v1/otp`, {
@@ -95,13 +99,20 @@ export async function requestEmailOtp(email: string) {
     headers: getAuthHeaders(config.anonKey),
     body: JSON.stringify({
       email,
-      should_create_user: true
-    })
+      should_create_user: true,
+    }),
   })
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as SupabaseVerifyResponse
-    throw new Error(getSupabaseError(payload, "No se pudo solicitar el OTP de Supabase."))
+    const payload = (await response
+      .json()
+      .catch(() => ({}))) as SupabaseVerifyResponse
+    throw new Error(
+      getSupabaseError(
+        payload,
+        "No se pudo solicitar el código de verificación.",
+      ),
+    )
   }
 }
 
@@ -109,7 +120,9 @@ export async function verifyEmailOtp(email: string, token: string) {
   const config = getSupabaseConfig()
 
   if (!config) {
-    throw new Error("Supabase Auth no está configurado. Define NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.")
+    throw new Error(
+      "Supabase Auth no está configurado. Define NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+    )
   }
 
   const response = await fetch(`${config.url}/auth/v1/verify`, {
@@ -118,20 +131,22 @@ export async function verifyEmailOtp(email: string, token: string) {
     body: JSON.stringify({
       email,
       token,
-      type: "email"
-    })
+      type: "email",
+    }),
   })
-  const payload = (await response.json().catch(() => ({}))) as SupabaseVerifyResponse
+  const payload = (await response
+    .json()
+    .catch(() => ({}))) as SupabaseVerifyResponse
 
   if (!response.ok || !payload.access_token || !payload.user) {
-    throw new Error(getSupabaseError(payload, "OTP inválido o expirado."))
+    throw new Error(getSupabaseError(payload, "Código inválido o expirado."))
   }
 
   return {
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token ?? null,
     expiresIn: payload.expires_in ?? DEFAULT_ACCESS_TOKEN_MAX_AGE,
-    user: normalizeUser(payload.user)
+    user: normalizeUser(payload.user),
   }
 }
 
@@ -144,14 +159,16 @@ async function getUserFromAccessToken(accessToken: string) {
 
   const response = await fetch(`${config.url}/auth/v1/user`, {
     headers: getAuthHeaders(config.anonKey, accessToken),
-    cache: "no-store"
+    cache: "no-store",
   })
 
   if (!response.ok) {
     return null
   }
 
-  const user = (await response.json().catch(() => null)) as SupabaseUserResponse | null
+  const user = (await response
+    .json()
+    .catch(() => null)) as SupabaseUserResponse | null
   return normalizeUser(user)
 }
 
@@ -182,22 +199,29 @@ export async function requireAuthenticatedUser(request: Request) {
     return {
       user: null,
       response: NextResponse.json(
-        { success: false, error: "Authentication required. Inicia sesión con email para continuar." },
-        { status: 401 }
-      )
+        {
+          success: false,
+          error:
+            "Authentication required. Inicia sesión con email para continuar.",
+        },
+        { status: 401 },
+      ),
     }
   }
 
   return { user, response: null }
 }
 
-export function setAuthCookies(response: NextResponse, session: Awaited<ReturnType<typeof verifyEmailOtp>>) {
+export function setAuthCookies(
+  response: NextResponse,
+  session: Awaited<ReturnType<typeof verifyEmailOtp>>,
+) {
   response.cookies.set(ACCESS_TOKEN_COOKIE, session.accessToken, {
     httpOnly: true,
     maxAge: session.expiresIn,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
   })
 
   if (session.refreshToken) {
@@ -206,7 +230,7 @@ export function setAuthCookies(response: NextResponse, session: Awaited<ReturnTy
       maxAge: REFRESH_TOKEN_MAX_AGE,
       path: "/",
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production"
+      secure: process.env.NODE_ENV === "production",
     })
   }
 }
@@ -217,13 +241,13 @@ export function clearAuthCookies(response: NextResponse) {
     maxAge: 0,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
   })
   response.cookies.set(REFRESH_TOKEN_COOKIE, "", {
     httpOnly: true,
     maxAge: 0,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
   })
 }
