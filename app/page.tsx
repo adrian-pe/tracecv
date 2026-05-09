@@ -35,6 +35,16 @@ type GeneratedCv = {
   languagesAndTools: string[]
 }
 
+type ProfileVerification = {
+  profileHash?: string | null
+  hash?: string | null
+  verifiedAt?: string | null
+  network?: string | null
+  transactionHash?: string | null
+  explorerUrl?: string | null
+  error?: string | null
+}
+
 type GitHubResponse = {
   success: boolean
   message: string
@@ -48,6 +58,25 @@ type GitHubResponse = {
   languages: string[]
   topics: string[]
   cv: GeneratedCv
+  profileHash?: string | null
+  hash?: string | null
+  verifiedAt?: string | null
+  network?: string | null
+  transactionHash?: string | null
+  explorerUrl?: string | null
+  verificationError?: string | null
+  verification?: ProfileVerification | null
+}
+
+type VerificationSummary = {
+  profileHash: string | null
+  verifiedAt: string | null
+  network: string | null
+  transactionHash: string | null
+  explorerUrl: string | null
+  error: string | null
+  status: "unverified" | "hash-generated" | "anchored" | "error"
+  label: string
 }
 
 type SkillGroup = {
@@ -111,14 +140,74 @@ function groupTechnicalSkills(skills: string[]): SkillGroup[] {
   ]
 }
 
+function getVerificationSummary(result: GitHubResponse | null): VerificationSummary {
+  const verification = result?.verification
+  const profileHash = result?.profileHash ?? result?.hash ?? verification?.profileHash ?? verification?.hash ?? null
+  const transactionHash = result?.transactionHash ?? verification?.transactionHash ?? null
+  const explorerUrl = result?.explorerUrl ?? verification?.explorerUrl ?? null
+  const error = result?.verificationError ?? verification?.error ?? null
+
+  if (error) {
+    return {
+      profileHash,
+      verifiedAt: result?.verifiedAt ?? verification?.verifiedAt ?? null,
+      network: result?.network ?? verification?.network ?? null,
+      transactionHash,
+      explorerUrl,
+      error,
+      status: "error",
+      label: "Error de verificación"
+    }
+  }
+
+  if (transactionHash) {
+    return {
+      profileHash,
+      verifiedAt: result?.verifiedAt ?? verification?.verifiedAt ?? null,
+      network: result?.network ?? verification?.network ?? null,
+      transactionHash,
+      explorerUrl,
+      error: null,
+      status: "anchored",
+      label: "Anclado on-chain"
+    }
+  }
+
+  if (profileHash) {
+    return {
+      profileHash,
+      verifiedAt: result?.verifiedAt ?? verification?.verifiedAt ?? null,
+      network: result?.network ?? verification?.network ?? null,
+      transactionHash: null,
+      explorerUrl: null,
+      error: null,
+      status: "hash-generated",
+      label: "Hash generado"
+    }
+  }
+
+  return {
+    profileHash: null,
+    verifiedAt: null,
+    network: null,
+    transactionHash: null,
+    explorerUrl: null,
+    error: null,
+    status: "unverified",
+    label: "No verificado"
+  }
+}
+
 export default function Home() {
   const [githubUrl, setGithubUrl] = useState("")
   const [result, setResult] = useState<GitHubResponse | null>(null)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [copyStatus, setCopyStatus] = useState("")
 
   const usernamePreview = useMemo(() => getGitHubUsername(githubUrl), [githubUrl])
   const technicalSkillGroups = useMemo(() => groupTechnicalSkills(result?.cv.technicalSkills ?? []), [result])
+  const verificationSummary = useMemo(() => getVerificationSummary(result), [result])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -133,6 +222,7 @@ export default function Home() {
 
     setIsLoading(true)
     setError("")
+    setCopyStatus("")
     setResult(null)
 
     try {
@@ -155,6 +245,19 @@ export default function Home() {
       setError(message)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleCopyProfileHash() {
+    if (!verificationSummary.profileHash) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(verificationSummary.profileHash)
+      setCopyStatus("Hash copiado")
+    } catch {
+      setCopyStatus("No se pudo copiar el hash")
     }
   }
 
@@ -329,6 +432,61 @@ export default function Home() {
                 </div>
               </div>
             </section>
+          </article>
+
+          <article className="metric-card" aria-label="Repositorios procesados">
+            <p className="eyebrow">Repositorios procesados</p>
+            <strong>{result.repositoriesProcessed}</strong>
+            <span>de {result.totalRepositories} repositorios públicos analizados</span>
+          </article>
+
+          <article className="metric-card" aria-label="Lenguajes detectados">
+            <p className="eyebrow">Lenguajes detectados</p>
+            <strong>{result.languages.length}</strong>
+            <span>{result.languages.length ? result.languages.slice(0, 4).join(", ") : "Sin lenguajes detectados"}</span>
+          </article>
+
+          <article className={`verification-card verification-card--${verificationSummary.status}`} aria-label="Evidencia verificable del perfil">
+            <div className="verification-card-header">
+              <div>
+                <p className="eyebrow">Evidencia verificable</p>
+                <h3>{verificationSummary.label}</h3>
+              </div>
+              <span className="verification-status-dot" aria-hidden="true" />
+            </div>
+
+            <dl className="verification-details">
+              <div>
+                <dt>profileHash</dt>
+                <dd>{verificationSummary.profileHash ?? "Pendiente de generación"}</dd>
+              </div>
+              <div>
+                <dt>verifiedAt</dt>
+                <dd>{verificationSummary.verifiedAt ? formatDate(verificationSummary.verifiedAt) : "Sin fecha de verificación"}</dd>
+              </div>
+              <div>
+                <dt>network</dt>
+                <dd>{verificationSummary.network ?? "Sin red blockchain"}</dd>
+              </div>
+              <div>
+                <dt>transactionHash</dt>
+                <dd>{verificationSummary.transactionHash ?? "Sin transacción"}</dd>
+              </div>
+            </dl>
+
+            {verificationSummary.error ? <p className="verification-error">{verificationSummary.error}</p> : null}
+
+            <div className="verification-actions">
+              <button disabled={!verificationSummary.profileHash} onClick={handleCopyProfileHash} type="button">
+                Copiar hash
+              </button>
+              {verificationSummary.transactionHash && verificationSummary.explorerUrl ? (
+                <a href={verificationSummary.explorerUrl} rel="noreferrer" target="_blank">
+                  Ver transacción
+                </a>
+              ) : null}
+            </div>
+            {copyStatus ? <p className="copy-status" role="status">{copyStatus}</p> : null}
           </article>
 
           <details className="json-card">
