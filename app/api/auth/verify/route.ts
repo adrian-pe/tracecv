@@ -16,14 +16,20 @@ export async function POST(request: Request) {
   const token = body.token?.trim()
 
   if (!email || !token) {
-    return NextResponse.json({ success: false, error: "Email and OTP token are required" }, { status: 400 })
+    return NextResponse.json(
+      { success: false, error: "Email and verification code are required" },
+      { status: 400 },
+    )
   }
 
   try {
     const session = await verifyEmailOtp(email, token)
 
     if (!session.user) {
-      return NextResponse.json({ success: false, error: "Supabase did not return a user session" }, { status: 401 })
+      return NextResponse.json(
+        { success: false, error: "Supabase did not return a user session" },
+        { status: 401 },
+      )
     }
 
     const response = NextResponse.json({ success: true, user: session.user })
@@ -31,8 +37,14 @@ export async function POST(request: Request) {
     return response
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "No se pudo validar el OTP." },
-      { status: 401 }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo validar el código de verificación.",
+      },
+      { status: 401 },
     )
   }
 }

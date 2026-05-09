@@ -20,7 +20,7 @@ export default function LoginForm() {
       const response = await fetch("/api/auth/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       })
       const data = await response.json()
 
@@ -29,9 +29,15 @@ export default function LoginForm() {
       }
 
       setStep("verify")
-      setMessage(data.message ?? "Revisa tu email e ingresa el código OTP.")
+      setMessage(
+        data.message ?? "Revisa tu email e ingresa el código de verificación.",
+      )
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Ocurrió un error inesperado.")
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Ocurrió un error inesperado.",
+      )
     } finally {
       setIsLoading(false)
     }
@@ -47,17 +53,23 @@ export default function LoginForm() {
       const response = await fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token })
+        body: JSON.stringify({ email, token }),
       })
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error ?? "No se pudo validar el código OTP.")
+        throw new Error(
+          data.error ?? "No se pudo validar el código de verificación.",
+        )
       }
 
       window.location.href = "/"
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : "Ocurrió un error inesperado.")
+      setError(
+        verifyError instanceof Error
+          ? verifyError.message
+          : "Ocurrió un error inesperado.",
+      )
     } finally {
       setIsLoading(false)
     }
@@ -67,10 +79,12 @@ export default function LoginForm() {
     <main className="page-shell auth-page">
       <section className="hero-card auth-card">
         <div className="hero-content">
-          <p className="eyebrow">TraceCV · Supabase Auth</p>
-          <h1>Accede con tu email para generar CVs verificables.</h1>
+          <p className="eyebrow">TraceCV · Acceso por email</p>
+          <h1>Conéctate con tu email para guardar tu TraceCV.</h1>
           <p className="hero-description">
-            Usamos Supabase Auth con OTP por email. La sesión queda guardada en cookies httpOnly y las API Routes derivan el usuario desde esa sesión.
+            Te enviaremos un código de verificación a tu email. No necesitas
+            contraseña: úsalo para continuar, guardar tu CV técnico y habilitar
+            la evidencia verificable.
           </p>
 
           {step === "request" ? (
@@ -87,13 +101,13 @@ export default function LoginForm() {
                   value={email}
                 />
                 <button disabled={isLoading} type="submit">
-                  {isLoading ? "Enviando..." : "Enviar OTP"}
+                  {isLoading ? "Enviando..." : "Enviar código"}
                 </button>
               </div>
             </form>
           ) : (
             <form className="github-form" onSubmit={verifyOtp}>
-              <label htmlFor="token">Código OTP</label>
+              <label htmlFor="token">Código de verificación</label>
               <div className="input-row">
                 <input
                   id="token"
@@ -109,7 +123,11 @@ export default function LoginForm() {
                   {isLoading ? "Validando..." : "Entrar"}
                 </button>
               </div>
-              <button className="link-button" onClick={() => setStep("request")} type="button">
+              <button
+                className="link-button"
+                onClick={() => setStep("request")}
+                type="button"
+              >
                 Cambiar email
               </button>
             </form>
