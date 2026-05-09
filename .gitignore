@@ -1,42 +1,81 @@
-# dependencies
+# Dependencies
 node_modules/
+.pnpm-store/
 
-# logs
-logs
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# Logs
+logs/
 *.log
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# env
-.env
-.env.local
-.env.*.local
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# build
-dist/
-build/
+# Build outputs
+/dist/
+/build/
 .next/
 out/
+.vercel/
+.turbo/
 
-# OS
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Caches
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Local databases and dumps
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+*.sql
+
+# Generated extension bundles
+apps/extension/dist/
+frontend/.next/
+frontend/out/
+backend/dist/
+
+# OS files
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+Desktop.ini
 
-# IDE
+# Editor and IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# coverage
-coverage/
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
 
-# cache
-.cache/
-
-# extension build (si luego generas bundles)
-apps/extension/dist/
-
-# prisma / db (cuando lo agregues)
-*.db
-*.sqlite
+# Keep documentation tracked.
+# Do not add docs/ here unless it only contains generated or private artifacts.
