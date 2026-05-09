@@ -1,11 +1,13 @@
 import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
+import { anchorProfileSnapshotHash, isBlockchainAnchorConfigured } from "@/lib/blockchain-anchor"
 import { db, type Activity } from "@/lib/db"
 import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
+import { createProfileSnapshot, PROFILE_SNAPSHOT_SCHEMA_VERSION } from "@/lib/profile-snapshot"
 import { extractSkillsFromGitHub } from "@/lib/skill-engine"
 
 export const runtime = "nodejs"
-export const maxDuration = 10
+export const maxDuration = 30
 
 type GitHubRouteContext = {
   params: {
@@ -76,6 +78,38 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       }
     })
 
+    const profileActivities = db.activities.filter((activity) => activity.userId === userId)
+    const profileSkills = db.userSkills.filter((userSkill) => userSkill.userId === userId).map((userSkill) => userSkill.skill)
+    const { hash: profileHash } = createProfileSnapshot({
+      userId,
+      skills: profileSkills,
+      activities: profileActivities
+    })
+    let verification = null
+
+    if (isBlockchainAnchorConfigured()) {
+      try {
+        verification = await anchorProfileSnapshotHash({
+          hash: profileHash,
+          profileId: String(userId),
+          schemaVersion: PROFILE_SNAPSHOT_SCHEMA_VERSION
+        })
+      } catch (verificationError) {
+        const verificationErrorMessage = verificationError instanceof Error ? verificationError.message : "No se pudo anclar el hash en Stellar."
+
+        verification = {
+          provider: "stellar" as const,
+          profileHash,
+          hash: profileHash,
+          verifiedAt: new Date().toISOString(),
+          network: process.env.STELLAR_NETWORK?.trim() || "testnet",
+          transactionHash: null,
+          explorerUrl: null,
+          error: verificationErrorMessage
+        }
+      }
+    }
+
     return jsonResponse({
       success: true,
       message: `GitHub profile for "${username}" processed successfully`,
@@ -97,7 +131,15 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
       totalRepositories: gitHubData.repositories.length,
       languages: gitHubData.languages,
       topics: gitHubData.topics,
-      cv
+      cv,
+      profileHash,
+      hash: profileHash,
+      verifiedAt: verification?.verifiedAt ?? null,
+      network: verification?.network ?? null,
+      transactionHash: verification?.transactionHash ?? null,
+      explorerUrl: verification?.explorerUrl ?? null,
+      verificationError: verification && "error" in verification ? verification.error : null,
+      verification
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected GitHub processing error"
