@@ -5,6 +5,7 @@ import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
 import { createProfileSnapshot, PROFILE_SNAPSHOT_SCHEMA_VERSION } from "@/lib/profile-snapshot"
 import { extractSkillsFromGitHub } from "@/lib/skill-engine"
+import { getStellarNetworkDisplayName } from "@/lib/stellar"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -102,7 +103,7 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
           profileHash,
           hash: profileHash,
           verifiedAt: new Date().toISOString(),
-          network: process.env.STELLAR_NETWORK?.trim() || "testnet",
+          network: getStellarNetworkDisplayName(),
           transactionHash: null,
           explorerUrl: null,
           error: verificationErrorMessage
