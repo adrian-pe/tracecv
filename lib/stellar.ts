@@ -24,6 +24,13 @@ export type StellarAnchorReceipt = {
   verifiedAt: string
 }
 
+export function isStellarAnchoringConfigured() {
+  return Boolean(
+    process.env.STELLAR_SECRET_KEY?.trim() &&
+      process.env.STELLAR_PUBLIC_KEY?.trim(),
+  )
+}
+
 type StellarConfig = {
   network: StellarNetworkName
   networkPassphrase: string

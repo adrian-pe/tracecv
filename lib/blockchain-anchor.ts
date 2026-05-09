@@ -1,3 +1,5 @@
+import { anchorHashOnStellar, isStellarAnchoringConfigured } from "@/lib/stellar"
+
 export type BlockchainAnchorRequest = {
   hash: string
   profileId?: string
@@ -5,11 +7,33 @@ export type BlockchainAnchorRequest = {
 }
 
 export type BlockchainAnchorReceipt = {
-  provider: string
+  provider: "stellar"
+  profileHash: string
+  hash: string
   transactionId: string
+  transactionHash: string
+  network: string
+  explorerUrl: string | null
   anchoredAt: string
+  verifiedAt: string
 }
 
-export async function anchorProfileSnapshotHash(_request: BlockchainAnchorRequest): Promise<BlockchainAnchorReceipt> {
-  throw new Error("Blockchain anchor provider is not configured yet. Publish only non-reversible hashes or identifiers on-chain.")
+export function isBlockchainAnchorConfigured() {
+  return isStellarAnchoringConfigured()
+}
+
+export async function anchorProfileSnapshotHash({ hash }: BlockchainAnchorRequest): Promise<BlockchainAnchorReceipt> {
+  const receipt = await anchorHashOnStellar(hash)
+
+  return {
+    provider: "stellar",
+    profileHash: receipt.hash,
+    hash: receipt.hash,
+    transactionId: receipt.transactionHash,
+    transactionHash: receipt.transactionHash,
+    network: receipt.network,
+    explorerUrl: receipt.explorerUrl,
+    anchoredAt: receipt.verifiedAt,
+    verifiedAt: receipt.verifiedAt
+  }
 }
