@@ -8,7 +8,7 @@ type JsonPrimitive = string | number | boolean | null
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 export type ProfileSnapshotInput = {
-  userId: number
+  userId: string
   skills: string[]
   activities: Activity[]
 }
@@ -20,7 +20,7 @@ export type ProfileSnapshotTimestamps = {
 
 export type ProfileSnapshotDocument = {
   schemaVersion: typeof PROFILE_SNAPSHOT_SCHEMA_VERSION
-  userId: number
+  userId: string
   skills: string[]
   activities: JsonValue[]
   timestamps: ProfileSnapshotTimestamps

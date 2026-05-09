@@ -30,7 +30,7 @@ export type EnrichedGitHubData = {
   languages: string[]
   topics: string[]
   username: string
-  userId: number
+  userId: string
 }
 
 type GitHubErrorPayload = {
@@ -82,7 +82,7 @@ export async function fetchUserRepositories(username: string): Promise<GitHubRep
   )
 }
 
-export async function enrichGitHubData(username: string, userId: number): Promise<EnrichedGitHubData> {
+export async function enrichGitHubData(username: string, userId: string): Promise<EnrichedGitHubData> {
   const [profile, repositories] = await Promise.all([
     fetchUserProfile(username),
     fetchUserRepositories(username)

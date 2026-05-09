@@ -1,5 +1,6 @@
-import { jsonResponse, optionsResponse, parseUserId } from "@/lib/api"
+import { jsonResponse, optionsResponse } from "@/lib/api"
 import { anchorProfileSnapshotHash, isBlockchainAnchorConfigured } from "@/lib/blockchain-anchor"
+import { requireAuthenticatedUser } from "@/lib/auth"
 import { db, type Activity } from "@/lib/db"
 import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
@@ -16,14 +17,15 @@ type GitHubRouteContext = {
   }
 }
 
-type GitHubImportRequest = {
-  userId?: number | string
-}
-
 export async function POST(request: Request, { params }: GitHubRouteContext) {
   try {
-    const body = (await request.json().catch(() => ({}))) as GitHubImportRequest
-    const userId = parseUserId(body.userId)
+    const { user, response } = await requireAuthenticatedUser(request)
+
+    if (!user) {
+      return response
+    }
+
+    const userId = user.id
     const username = decodeURIComponent(params.username)
 
     if (!username) {
@@ -60,7 +62,7 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
         updatedAt: new Date(repository.updated_at)
       }
 
-      const exists = db.activities.some((activity) => activity.id === repoActivity.id)
+      const exists = db.activities.some((activity) => activity.id === repoActivity.id && activity.userId === userId)
 
       if (!exists) {
         db.activities.push(repoActivity)
