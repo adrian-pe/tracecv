@@ -317,6 +317,10 @@ export default function HomeClient({ user }: HomeClientProps) {
     }
   }
 
+  function handlePrintHarvardPdf() {
+    window.print()
+  }
+
   return (
     <main className="page-shell">
       <section className="hero-card">
@@ -422,6 +426,16 @@ export default function HomeClient({ user }: HomeClientProps) {
                 </a>
               </div>
             </header>
+
+            <div className="cv-actions" aria-label="Acciones del CV">
+              <button onClick={handlePrintHarvardPdf} type="button">
+                Descargar PDF Harvard
+              </button>
+              <p>
+                Abre el diálogo de impresión del navegador con una plantilla
+                Harvard optimizada para guardar como PDF.
+              </p>
+            </div>
 
             <section className="cv-section">
               <div className="section-heading">
@@ -642,6 +656,73 @@ export default function HomeClient({ user }: HomeClientProps) {
               ) : null}
             </article>
           ) : null}
+
+          <section className="harvard-print-cv" aria-label="CV Harvard para PDF">
+            <header className="harvard-print-header">
+              <p className="harvard-print-name">
+                {result.user.profile.name ?? result.user.username}
+              </p>
+              <p className="harvard-print-headline">{result.cv.headline}</p>
+              <p className="harvard-print-contact">
+                github.com/{result.user.username}
+                {result.user.profile.location
+                  ? ` · ${result.user.profile.location}`
+                  : ""}
+                {result.user.profile.public_repos
+                  ? ` · ${result.user.profile.public_repos} repositorios públicos`
+                  : ""}
+              </p>
+            </header>
+
+            <section className="harvard-print-section">
+              <h2>Professional Summary</h2>
+              <p>{result.cv.summary}</p>
+            </section>
+
+            <section className="harvard-print-section">
+              <h2>Technical Skills</h2>
+              <p>{result.cv.technicalSkills.join(" · ")}</p>
+            </section>
+
+            <section className="harvard-print-section">
+              <h2>Selected Projects</h2>
+              {result.cv.featuredProjects.length ? (
+                <ul>
+                  {result.cv.featuredProjects.map((project) => (
+                    <li key={`print-${project.url}`}>
+                      <strong>{project.name}</strong>
+                      {project.language ? ` — ${project.language}` : ""}
+                      {project.stars ? ` · ${project.stars} stars` : ""}
+                      <br />
+                      <span>
+                        {project.description ??
+                          "Public GitHub repository without description."}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No public projects available.</p>
+              )}
+            </section>
+
+            <section className="harvard-print-section">
+              <h2>Open Source Experience</h2>
+              <ul>
+                {result.cv.experienceHighlights.map((highlight) => (
+                  <li key={`print-highlight-${highlight}`}>{highlight}</li>
+                ))}
+                {result.cv.openSourceSignals.map((signal) => (
+                  <li key={`print-signal-${signal}`}>{signal}</li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="harvard-print-section">
+              <h2>Target Roles</h2>
+              <p>{result.cv.suggestedRoles.join(" · ")}</p>
+            </section>
+          </section>
 
           <details className="json-card">
             <summary>Ver JSON crudo para depuración</summary>
