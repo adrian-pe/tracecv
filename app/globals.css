@@ -693,3 +693,155 @@ h2 {
   color: #bbf7d0;
   font-weight: 700;
 }
+
+.cv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 20px;
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.cv-actions button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  color: #020617;
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 160ms ease;
+}
+
+.cv-actions button:hover {
+  transform: translateY(-2px);
+}
+
+.cv-actions p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.harvard-print-cv {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 0.65in;
+    size: letter;
+  }
+
+  :root {
+    --text: #111827;
+  }
+
+  html,
+  body {
+    min-height: auto;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .harvard-print-cv,
+  .harvard-print-cv * {
+    visibility: visible;
+  }
+
+  .page-shell,
+  .results-grid {
+    display: block;
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .hero-card,
+  .results-grid > article,
+  .results-grid > details {
+    display: none !important;
+  }
+
+  .harvard-print-cv {
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: #ffffff;
+    color: #111827;
+    font-size: 10.5pt;
+    line-height: 1.35;
+  }
+
+  .harvard-print-header {
+    border-bottom: 1.5pt solid #111827;
+    margin-bottom: 14pt;
+    padding-bottom: 10pt;
+    text-align: center;
+  }
+
+  .harvard-print-name {
+    margin: 0 0 4pt;
+    color: #111827;
+    font-size: 21pt;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .harvard-print-headline,
+  .harvard-print-contact {
+    margin: 0;
+    color: #374151;
+    font-size: 10.5pt;
+  }
+
+  .harvard-print-headline {
+    font-style: italic;
+  }
+
+  .harvard-print-section {
+    break-inside: avoid;
+    margin-top: 12pt;
+  }
+
+  .harvard-print-section h2 {
+    border-bottom: 0.75pt solid #9ca3af;
+    margin: 0 0 6pt;
+    padding-bottom: 2pt;
+    color: #111827;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5pt;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .harvard-print-section p {
+    margin: 0;
+  }
+
+  .harvard-print-section ul {
+    display: grid;
+    gap: 5pt;
+    margin: 0;
+    padding-left: 16pt;
+  }
+
+  .harvard-print-section li {
+    break-inside: avoid;
+  }
+}
