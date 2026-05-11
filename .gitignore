@@ -50,6 +50,7 @@ test-results/
 *.sqlite3
 *.dump
 *.sql
+!supabase/migrations/*.sql
 
 # Generated extension bundles
 apps/extension/dist/

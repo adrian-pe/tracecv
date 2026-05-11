@@ -1,6 +1,11 @@
 import { jsonResponse, optionsResponse } from "@/lib/api"
 import { requireAuthenticatedUser } from "@/lib/auth"
-import { db, type Activity } from "@/lib/db"
+import {
+  createActivity,
+  upsertUser,
+  upsertUserSkills,
+  type Activity,
+} from "@/lib/db"
 import { extractSkills } from "@/lib/skill-engine"
 
 export const runtime = "nodejs"
@@ -35,19 +40,20 @@ export async function POST(request: Request) {
     createdAt: new Date()
   }
 
-  db.activities.push(activity)
+  await upsertUser(user)
+  const savedActivity = await createActivity(activity)
 
-  const skills = extractSkills(activity)
+  const skills = extractSkills(savedActivity)
 
-  skills.forEach((skill) => {
-    db.userSkills.push({
-      userId: activity.userId,
+  await upsertUserSkills(
+    skills.map((skill) => ({
+      userId: savedActivity.userId,
       skill,
-      activityId: activity.id
-    })
-  })
+      activityId: savedActivity.id,
+    })),
+  )
 
-  return jsonResponse({ success: true, activity, skills })
+  return jsonResponse({ success: true, activity: savedActivity, skills })
 }
 
 export function OPTIONS() {

@@ -1,5 +1,5 @@
 import { jsonResponse, optionsResponse } from "@/lib/api"
-import { db } from "@/lib/db"
+import { getProfileData } from "@/lib/db"
 import { createProfileSnapshot } from "@/lib/profile-snapshot"
 
 export const runtime = "nodejs"
@@ -10,20 +10,22 @@ type ProfileSnapshotRouteContext = {
   }
 }
 
-export function GET(_request: Request, { params }: ProfileSnapshotRouteContext) {
+export async function GET(
+  _request: Request,
+  { params }: ProfileSnapshotRouteContext,
+) {
   const userId = decodeURIComponent(params.userId)
-  const activities = db.activities.filter((activity) => activity.userId === userId)
-  const skills = db.userSkills.filter((userSkill) => userSkill.userId === userId).map((userSkill) => userSkill.skill)
+  const { activities, skills } = await getProfileData(userId)
   const { snapshot, hash } = createProfileSnapshot({
     userId,
     skills,
-    activities
+    activities,
   })
 
   return jsonResponse({
     snapshot,
     hash,
-    generatedAt: new Date().toISOString()
+    generatedAt: new Date().toISOString(),
   })
 }
 

@@ -4,7 +4,14 @@ import {
   isBlockchainAnchorConfigured,
 } from "@/lib/blockchain-anchor"
 import { getCurrentUserFromRequest } from "@/lib/auth"
-import { db, type Activity } from "@/lib/db"
+import {
+  createProfileSnapshotRecord,
+  getProfileData,
+  upsertActivities,
+  upsertUser,
+  upsertUserSkills,
+  type Activity,
+} from "@/lib/db"
 import { generateCvFromGitHub } from "@/lib/cv-generator"
 import { enrichGitHubData } from "@/lib/github-service"
 import {
@@ -53,53 +60,34 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
     let profileHash: string | null = null
     let verification = null
 
-    if (userId) {
-      reposToStore.forEach((repository) => {
-        const repoActivity: Activity = {
-          id: `github-${repository.id}`,
+    if (userId && user) {
+      await upsertUser(user)
+
+      const repoActivities: Activity[] = reposToStore.map((repository) => ({
+        id: `github-${repository.id}`,
+        userId,
+        type: "repository",
+        source: "github",
+        title: repository.name,
+        url: repository.html_url,
+        description: repository.description,
+        language: repository.language,
+        stars: repository.stargazers_count,
+        createdAt: new Date(repository.created_at),
+        updatedAt: new Date(repository.updated_at),
+      }))
+
+      await upsertActivities(repoActivities)
+      await upsertUserSkills(
+        skillsFromGitHub.map((skill) => ({
           userId,
-          type: "repository",
+          skill,
           source: "github",
-          title: repository.name,
-          url: repository.html_url,
-          description: repository.description,
-          language: repository.language,
-          stars: repository.stargazers_count,
-          createdAt: new Date(repository.created_at),
-          updatedAt: new Date(repository.updated_at),
-        }
-
-        const exists = db.activities.some(
-          (activity) =>
-            activity.id === repoActivity.id && activity.userId === userId,
-        )
-
-        if (!exists) {
-          db.activities.push(repoActivity)
-        }
-      })
-
-      skillsFromGitHub.forEach((skill) => {
-        const exists = db.userSkills.some(
-          (userSkill) =>
-            userSkill.userId === userId && userSkill.skill === skill,
-        )
-
-        if (!exists) {
-          db.userSkills.push({
-            userId,
-            skill,
-            source: "github",
-          })
-        }
-      })
-
-      const profileActivities = db.activities.filter(
-        (activity) => activity.userId === userId,
+        })),
       )
-      const profileSkills = db.userSkills
-        .filter((userSkill) => userSkill.userId === userId)
-        .map((userSkill) => userSkill.skill)
+
+      const { activities: profileActivities, skills: profileSkills } =
+        await getProfileData(userId)
       const snapshot = createProfileSnapshot({
         userId,
         skills: profileSkills,
@@ -132,6 +120,15 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
           }
         }
       }
+
+      await createProfileSnapshotRecord({
+        user_id: userId,
+        hash: profileHash,
+        schema_version: PROFILE_SNAPSHOT_SCHEMA_VERSION,
+        receipt: verification,
+        transaction_hash: verification?.transactionHash ?? null,
+        network: verification?.network ?? null,
+      })
     }
 
     return jsonResponse({

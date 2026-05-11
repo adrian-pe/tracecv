@@ -1,7 +1,14 @@
 import { jsonResponse, optionsResponse } from "@/lib/api"
 import { requireAuthenticatedUser } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { createProfileSnapshot } from "@/lib/profile-snapshot"
+import {
+  createProfileSnapshotRecord,
+  getProfileData,
+  upsertUser,
+} from "@/lib/db"
+import {
+  createProfileSnapshot,
+  PROFILE_SNAPSHOT_SCHEMA_VERSION,
+} from "@/lib/profile-snapshot"
 import { anchorHashOnStellar } from "@/lib/stellar"
 
 export const runtime = "nodejs"
@@ -35,18 +42,24 @@ export async function POST(
   }
 
   const userId = user.id
-  const activities = db.activities.filter(
-    (activity) => activity.userId === userId,
-  )
-  const skills = db.userSkills
-    .filter((userSkill) => userSkill.userId === userId)
-    .map((userSkill) => userSkill.skill)
+  await upsertUser(user)
+
+  const { activities, skills } = await getProfileData(userId)
   const { hash } = createProfileSnapshot({
     userId,
     skills,
     activities,
   })
   const anchorReceipt = await anchorHashOnStellar(hash)
+
+  await createProfileSnapshotRecord({
+    user_id: userId,
+    hash,
+    schema_version: PROFILE_SNAPSHOT_SCHEMA_VERSION,
+    receipt: anchorReceipt,
+    transaction_hash: anchorReceipt.transactionHash,
+    network: anchorReceipt.network,
+  })
 
   return jsonResponse(anchorReceipt)
 }
