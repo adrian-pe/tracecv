@@ -119,6 +119,18 @@ function getSupabaseHeaders(prefer?: string) {
   }
 }
 
+function parseSupabaseJson<T>(body: string): T | null {
+  if (!body.trim()) {
+    return null
+  }
+
+  try {
+    return JSON.parse(body) as T
+  } catch {
+    return null
+  }
+}
+
 async function requestSupabase<T>(
   path: string,
   init: RequestInit & { prefer?: string } = {},
@@ -132,11 +144,14 @@ async function requestSupabase<T>(
     },
     cache: "no-store",
   })
+  const body = await response.text()
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { message?: string; details?: string; hint?: string }
-      | null
+    const payload = parseSupabaseJson<{
+      message?: string
+      details?: string
+      hint?: string
+    }>(body)
     const message = payload?.message ?? response.statusText
     const details = [payload?.details, payload?.hint].filter(Boolean).join(" ")
 
@@ -147,11 +162,7 @@ async function requestSupabase<T>(
     )
   }
 
-  if (response.status === 204) {
-    return null as T
-  }
-
-  return (await response.json()) as T
+  return (parseSupabaseJson<T>(body) ?? null) as T
 }
 
 function toActivity(row: SupabaseActivityRow): Activity {
