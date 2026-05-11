@@ -1,5 +1,5 @@
 import { jsonResponse, optionsResponse } from "@/lib/api"
-import { db } from "@/lib/db"
+import { getProfileData } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -9,16 +9,14 @@ type ProfileRouteContext = {
   }
 }
 
-export function GET(_request: Request, { params }: ProfileRouteContext) {
+export async function GET(_request: Request, { params }: ProfileRouteContext) {
   const userId = decodeURIComponent(params.userId)
-  const activities = db.activities.filter((activity) => activity.userId === userId)
-  const skills = db.userSkills.filter((userSkill) => userSkill.userId === userId).map((userSkill) => userSkill.skill)
-  const uniqueSkills = [...new Set(skills)]
+  const { activities, skills } = await getProfileData(userId)
 
   return jsonResponse({
     userId,
-    skills: uniqueSkills,
-    activities
+    skills,
+    activities,
   })
 }
 
