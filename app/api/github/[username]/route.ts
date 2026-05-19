@@ -6,8 +6,8 @@ import {
 import { getCurrentUserFromRequest } from "@/lib/auth"
 import {
   createProfileSnapshotRecord,
+  getConnectedGitHubAccount,
   getProfileData,
-  getVerifiedGitHubConnectionByUsername,
   upsertActivities,
   upsertUser,
   upsertUserSkills,
@@ -45,10 +45,12 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
     }
 
     if (userId) {
-      const verifiedGitHubConnection =
-        await getVerifiedGitHubConnectionByUsername(userId, username)
+      const connectedGitHubAccount = await getConnectedGitHubAccount(
+        userId,
+        username,
+      )
 
-      if (!verifiedGitHubConnection) {
+      if (!connectedGitHubAccount) {
         return jsonResponse(
           {
             success: false,
