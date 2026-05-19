@@ -47,6 +47,16 @@ export type ProfileSnapshot = {
   createdAt: Date
 }
 
+export type VerifiedAccountConnection = {
+  id: string
+  userId: string
+  provider: "github"
+  providerId: string
+  username: string
+  verifiedAt: Date
+  metadata: Record<string, unknown> | null
+}
+
 type SupabaseActivityRow = {
   id: string
   user_id: string
@@ -82,6 +92,16 @@ type SupabaseProfileSnapshotInsert = {
   receipt?: Record<string, unknown> | null
   transaction_hash?: string | null
   network?: string | null
+}
+
+type SupabaseVerifiedAccountConnectionRow = {
+  id: string
+  user_id: string
+  provider: "github"
+  provider_id: string
+  username: string
+  verified_at: string
+  metadata?: Record<string, unknown> | null
 }
 
 const SUPABASE_REST_ERROR_MESSAGE =
@@ -212,6 +232,20 @@ function userSkillToInsert(userSkill: UserSkill) {
     skill: userSkill.skill,
     activity_id: userSkill.activityId ? String(userSkill.activityId) : null,
     source: userSkill.source ?? null,
+  }
+}
+
+function toVerifiedAccountConnection(
+  row: SupabaseVerifiedAccountConnectionRow,
+): VerifiedAccountConnection {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    provider: row.provider,
+    providerId: row.provider_id,
+    username: row.username,
+    verifiedAt: new Date(row.verified_at),
+    metadata: row.metadata ?? null,
   }
 }
 
@@ -351,4 +385,42 @@ export async function createProfileSnapshotRecord(
       prefer: "resolution=ignore-duplicates,return=minimal",
     },
   )
+}
+
+export async function upsertVerifiedGitHubConnection(connection: {
+  userId: string
+  providerId: string
+  username: string
+  metadata?: Record<string, unknown> | null
+}) {
+  const rows = await requestSupabase<SupabaseVerifiedAccountConnectionRow[]>(
+    "/verified_account_connections?on_conflict=user_id,provider,provider_id",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: connection.userId,
+        provider: "github",
+        provider_id: connection.providerId,
+        username: connection.username,
+        verified_at: new Date().toISOString(),
+        metadata: connection.metadata ?? null,
+      }),
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+  )
+
+  return toVerifiedAccountConnection(rows[0])
+}
+
+export async function getVerifiedGitHubConnectionByUsername(
+  userId: string,
+  username: string,
+) {
+  const rows = await requestSupabase<SupabaseVerifiedAccountConnectionRow[]>(
+    `/verified_account_connections?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&provider=eq.github&username=ilike.${encodeURIComponent(username)}&limit=1`,
+  )
+
+  return rows[0] ? toVerifiedAccountConnection(rows[0]) : null
 }

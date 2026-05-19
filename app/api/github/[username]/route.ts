@@ -7,6 +7,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth"
 import {
   createProfileSnapshotRecord,
   getProfileData,
+  getVerifiedGitHubConnectionByUsername,
   upsertActivities,
   upsertUser,
   upsertUserSkills,
@@ -41,6 +42,22 @@ export async function POST(request: Request, { params }: GitHubRouteContext) {
         { success: false, error: "GitHub username is required" },
         { status: 400 },
       )
+    }
+
+    if (userId) {
+      const verifiedGitHubConnection =
+        await getVerifiedGitHubConnectionByUsername(userId, username)
+
+      if (!verifiedGitHubConnection) {
+        return jsonResponse(
+          {
+            success: false,
+            error:
+              "Debes conectar esta cuenta de GitHub para verificar que eres el propietario.",
+          },
+          { status: 403 },
+        )
+      }
     }
 
     const gitHubData = await enrichGitHubData(username, userId)
