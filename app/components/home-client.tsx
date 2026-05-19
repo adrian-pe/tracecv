@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useState } from "react"
 
 type GitHubProfile = {
   name: string | null
@@ -91,6 +91,14 @@ type AuthenticatedUser = {
 
 type HomeClientProps = {
   user: AuthenticatedUser | null
+}
+
+type Connector = {
+  id: string
+  provider: "github"
+  providerAccountId: string
+  username: string
+  status: "connected" | "disconnected" | "revoked"
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api"
@@ -244,6 +252,11 @@ export default function HomeClient({ user }: HomeClientProps) {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [copyStatus, setCopyStatus] = useState("")
+  const [connectors, setConnectors] = useState<Connector[]>([])
+  const [isConnectorsLoading, setIsConnectorsLoading] = useState(false)
+  const [connectorsError, setConnectorsError] = useState("")
+  const [disconnectingId, setDisconnectingId] = useState("")
+  const [connectorsStatusMessage, setConnectorsStatusMessage] = useState("")
 
   const usernamePreview = useMemo(
     () => getGitHubUsername(githubUrl),
@@ -321,6 +334,99 @@ export default function HomeClient({ user }: HomeClientProps) {
     window.print()
   }
 
+  async function loadConnectors() {
+    if (!isAuthenticated) {
+      return
+    }
+
+    setIsConnectorsLoading(true)
+    setConnectorsError("")
+
+    try {
+      const response = await fetch("/api/connectors", { cache: "no-store" })
+      const data = (await response.json()) as {
+        success?: boolean
+        connectors?: Connector[]
+        error?: string
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? "No se pudieron cargar los conectores.")
+      }
+
+      setConnectors(data.connectors ?? [])
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Ocurrió un error al cargar conectores."
+      setConnectorsError(message)
+    } finally {
+      setIsConnectorsLoading(false)
+    }
+  }
+
+  async function handleDisconnect(connectionId: string) {
+    setDisconnectingId(connectionId)
+
+    try {
+      const response = await fetch(`/api/connectors/github/${connectionId}`, {
+        method: "DELETE",
+      })
+      const data = (await response.json()) as {
+        success?: boolean
+        error?: string
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? "No se pudo desconectar la cuenta.")
+      }
+
+      await loadConnectors()
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "No se pudo desconectar la cuenta."
+      setConnectorsError(message)
+    } finally {
+      setDisconnectingId("")
+    }
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    void loadConnectors()
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const searchParams = new URLSearchParams(window.location.search)
+    const connectionError = searchParams.get("github_connection_error")
+    const connectedUsername = searchParams.get("github_connected")
+
+    if (connectionError) {
+      setConnectorsError(decodeURIComponent(connectionError))
+      searchParams.delete("github_connection_error")
+    }
+
+    if (connectedUsername) {
+      setConnectorsStatusMessage(`GitHub conectado: ${connectedUsername}`)
+      searchParams.delete("github_connected")
+      void loadConnectors()
+    }
+
+    const updatedQuery = searchParams.toString()
+    const nextUrl = `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ""}`
+    window.history.replaceState({}, "", nextUrl)
+  }, [])
+
   return (
     <main className="page-shell">
       <section className="hero-card">
@@ -390,6 +496,51 @@ export default function HomeClient({ user }: HomeClientProps) {
           </p>
         </aside>
       </section>
+
+
+      {isAuthenticated ? (
+        <section className="connectors-card" aria-label="Conectores conectados">
+          <div className="connectors-card-header">
+            <div>
+              <p className="eyebrow">Conectores</p>
+              <h3>Tus cuentas conectadas</h3>
+            </div>
+            <a className="connect-github-button" href="/api/auth/github/connect">
+              Conectar GitHub
+            </a>
+          </div>
+
+          {isConnectorsLoading ? <p className="muted">Cargando conectores...</p> : null}
+          {connectorsError ? <p className="error-message">{connectorsError}</p> : null}
+          {connectorsStatusMessage ? <p className="helper-text">{connectorsStatusMessage}</p> : null}
+
+          {!isConnectorsLoading && connectors.length === 0 ? (
+            <p className="muted">No tienes cuentas conectadas todavía.</p>
+          ) : null}
+
+          {connectors.map((connector) => (
+            <article className="connector-item" key={connector.id}>
+              <div>
+                <h4>GitHub</h4>
+                <p>Conectado a {connector.username}</p>
+              </div>
+              <div className="connector-actions">
+                <button
+                  className="disconnect"
+                  disabled={disconnectingId === connector.id}
+                  onClick={() => void handleDisconnect(connector.id)}
+                  type="button"
+                >
+                  {disconnectingId === connector.id
+                    ? "Desconectando..."
+                    : "Desconectar"}
+                </button>
+                <a href="/api/auth/github/connect">Configuración</a>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       {result ? (
         <section className="results-grid" aria-live="polite">
