@@ -845,3 +845,82 @@ h2 {
     break-inside: avoid;
   }
 }
+
+.connectors-card {
+  margin-top: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 1rem;
+  background: linear-gradient(160deg, #0f172a, #111827);
+  padding: 1.25rem;
+}
+
+.connectors-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  margin-bottom: 1rem;
+}
+
+.connect-github-button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: 0.55rem 1rem;
+}
+
+.connector-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.connector-item + .connector-item {
+  margin-top: 0.8rem;
+}
+
+.connector-item h4 {
+  margin: 0;
+}
+
+.connector-item p {
+  margin: 0.3rem 0 0;
+  color: #cbd5e1;
+}
+
+.connector-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.connector-actions button,
+.connector-actions a {
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.8rem;
+  text-decoration: none;
+  background: transparent;
+}
+
+.connector-actions .disconnect {
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.8);
+}
+
+.connector-actions a {
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+}
