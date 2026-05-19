@@ -57,6 +57,20 @@ export type VerifiedAccountConnection = {
   metadata: Record<string, unknown> | null
 }
 
+export type ConnectedAccount = {
+  id: string
+  userId: string
+  provider: "github"
+  providerAccountId: string
+  username: string
+  avatarUrl: string | null
+  accessTokenRef: string | null
+  scopes: string[]
+  status: "connected" | "disconnected" | "revoked"
+  connectedAt: Date
+  updatedAt: Date
+}
+
 type SupabaseActivityRow = {
   id: string
   user_id: string
@@ -102,6 +116,20 @@ type SupabaseVerifiedAccountConnectionRow = {
   username: string
   verified_at: string
   metadata?: Record<string, unknown> | null
+}
+
+type SupabaseConnectedAccountRow = {
+  id: string
+  user_id: string
+  provider: "github"
+  provider_account_id: string
+  username: string
+  avatar_url?: string | null
+  access_token_ref?: string | null
+  scopes?: string[] | null
+  status: "connected" | "disconnected" | "revoked"
+  connected_at: string
+  updated_at: string
 }
 
 const SUPABASE_REST_ERROR_MESSAGE =
@@ -246,6 +274,22 @@ function toVerifiedAccountConnection(
     username: row.username,
     verifiedAt: new Date(row.verified_at),
     metadata: row.metadata ?? null,
+  }
+}
+
+function toConnectedAccount(row: SupabaseConnectedAccountRow): ConnectedAccount {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    provider: row.provider,
+    providerAccountId: row.provider_account_id,
+    username: row.username,
+    avatarUrl: row.avatar_url ?? null,
+    accessTokenRef: row.access_token_ref ?? null,
+    scopes: row.scopes ?? [],
+    status: row.status,
+    connectedAt: new Date(row.connected_at),
+    updatedAt: new Date(row.updated_at),
   }
 }
 
@@ -423,4 +467,81 @@ export async function getVerifiedGitHubConnectionByUsername(
   )
 
   return rows[0] ? toVerifiedAccountConnection(rows[0]) : null
+}
+
+export async function upsertConnectedAccount(connection: {
+  userId: string
+  provider: "github"
+  providerAccountId: string
+  username: string
+  avatarUrl?: string | null
+  accessTokenRef?: string | null
+  scopes?: string[]
+  status?: "connected" | "disconnected" | "revoked"
+}) {
+  const rows = await requestSupabase<SupabaseConnectedAccountRow[]>(
+    "/connected_accounts?on_conflict=user_id,provider,provider_account_id",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: connection.userId,
+        provider: connection.provider,
+        provider_account_id: connection.providerAccountId,
+        username: connection.username,
+        avatar_url: connection.avatarUrl ?? null,
+        access_token_ref: connection.accessTokenRef ?? null,
+        scopes: connection.scopes ?? [],
+        status: connection.status ?? "connected",
+      }),
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+  )
+
+  return toConnectedAccount(rows[0])
+}
+
+export async function getConnectedAccountsByUserId(userId: string) {
+  const rows = await requestSupabase<SupabaseConnectedAccountRow[]>(
+    `/connected_accounts?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&order=updated_at.desc`,
+  )
+
+  return rows.map(toConnectedAccount)
+}
+
+export async function getConnectedGitHubAccount(
+  userId: string,
+  username: string,
+) {
+  const rows = await requestSupabase<SupabaseConnectedAccountRow[]>(
+    `/connected_accounts?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&provider=eq.github&username=ilike.${encodeURIComponent(
+      username,
+    )}&status=eq.connected&limit=1`,
+  )
+
+  return rows[0] ? toConnectedAccount(rows[0]) : null
+}
+
+export async function disconnectConnectedAccount(
+  userId: string,
+  provider: "github",
+  providerAccountId: string,
+) {
+  const rows = await requestSupabase<SupabaseConnectedAccountRow[]>(
+    `/connected_accounts?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&provider=eq.${encodeURIComponent(
+      provider,
+    )}&provider_account_id=eq.${encodeURIComponent(providerAccountId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status: "disconnected" }),
+      prefer: "return=representation",
+    },
+  )
+
+  return rows[0] ? toConnectedAccount(rows[0]) : null
 }
