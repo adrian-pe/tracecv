@@ -248,6 +248,7 @@ function getVerificationSummary(
 export default function HomeClient({ user }: HomeClientProps) {
   const isAuthenticated = Boolean(user)
   const [githubUrl, setGithubUrl] = useState("")
+  const [selectedConnectionId, setSelectedConnectionId] = useState("")
   const [result, setResult] = useState<GitHubResponse | null>(null)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -260,6 +261,10 @@ export default function HomeClient({ user }: HomeClientProps) {
   const usernamePreview = useMemo(
     () => getGitHubUsername(githubUrl),
     [githubUrl],
+  )
+  const selectedConnection = useMemo(
+    () => connectors.find((connector) => connector.id === selectedConnectionId) ?? null,
+    [connectors, selectedConnectionId],
   )
   const technicalSkillGroups = useMemo(
     () => groupTechnicalSkills(result?.cv.technicalSkills ?? []),
@@ -275,7 +280,13 @@ export default function HomeClient({ user }: HomeClientProps) {
 
     const username = getGitHubUsername(githubUrl)
 
-    if (!username) {
+    if (isAuthenticated && !selectedConnectionId) {
+      setError("Selecciona una cuenta de GitHub conectada para continuar.")
+      setResult(null)
+      return
+    }
+
+    if (!isAuthenticated && !username) {
       setError("Ingresa una URL o usuario de GitHub para continuar.")
       setResult(null)
       return
@@ -287,15 +298,17 @@ export default function HomeClient({ user }: HomeClientProps) {
     setResult(null)
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/github/${encodeURIComponent(username)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`${API_BASE_URL}/github/import`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      )
+        body: JSON.stringify(
+          isAuthenticated
+            ? { connectionId: selectedConnectionId }
+            : { username, preview: true },
+        ),
+      })
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -353,7 +366,12 @@ export default function HomeClient({ user }: HomeClientProps) {
         throw new Error(data.error ?? "No se pudieron cargar los conectores.")
       }
 
-      setConnectors(data.connectors ?? [])
+      const fetchedConnectors = data.connectors ?? []
+      setConnectors(fetchedConnectors)
+
+      if (!selectedConnectionId && fetchedConnectors.length > 0) {
+        setSelectedConnectionId(fetchedConnectors[0].id)
+      }
     } catch (requestError) {
       const message =
         requestError instanceof Error
@@ -436,25 +454,56 @@ export default function HomeClient({ user }: HomeClientProps) {
           ) : null}
 
           <form className="github-form" onSubmit={handleSubmit}>
-            <label htmlFor="github-url">URL de GitHub</label>
-            <div className="input-row">
-              <input
-                id="github-url"
-                name="github-url"
-                onChange={(event) => setGithubUrl(event.target.value)}
-                placeholder="https://github.com/octocat"
-                type="text"
-                value={githubUrl}
-              />
-              <button disabled={isLoading} type="submit">
-                {isLoading ? "Generando CV..." : "Generar CV"}
-              </button>
-            </div>
-            <p className="helper-text">
-              {usernamePreview
-                ? `Se analizará el usuario: ${usernamePreview}`
-                : "También puedes escribir solo el usuario, por ejemplo: octocat."}
-            </p>
+            {isAuthenticated ? (
+              <>
+                <label htmlFor="github-connection">Cuenta de GitHub conectada</label>
+                <div className="input-row">
+                  <select
+                    id="github-connection"
+                    name="github-connection"
+                    onChange={(event) => setSelectedConnectionId(event.target.value)}
+                    value={selectedConnectionId}
+                  >
+                    <option value="">Selecciona una cuenta conectada</option>
+                    {connectors.map((connector) => (
+                      <option key={connector.id} value={connector.id}>
+                        @{connector.username}
+                      </option>
+                    ))}
+                  </select>
+                  <button disabled={isLoading || connectors.length === 0} type="submit">
+                    {isLoading ? "Generando CV..." : "Generar CV"}
+                  </button>
+                </div>
+                <p className="helper-text">
+                  {selectedConnection
+                    ? `Se analizará la cuenta verificada: @${selectedConnection.username}`
+                    : "Conecta una cuenta de GitHub y selecciónala para generar tu CV verificable."}
+                </p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="github-url">URL de GitHub (preview)</label>
+                <div className="input-row">
+                  <input
+                    id="github-url"
+                    name="github-url"
+                    onChange={(event) => setGithubUrl(event.target.value)}
+                    placeholder="https://github.com/octocat"
+                    type="text"
+                    value={githubUrl}
+                  />
+                  <button disabled={isLoading} type="submit">
+                    {isLoading ? "Generando preview..." : "Generar preview"}
+                  </button>
+                </div>
+                <p className="helper-text">
+                  {usernamePreview
+                    ? `Preview pública para: ${usernamePreview}`
+                    : "También puedes escribir solo el usuario, por ejemplo: octocat."}
+                </p>
+              </>
+            )}
           </form>
 
           {error ? <div className="error-message">{error}</div> : null}
@@ -463,10 +512,11 @@ export default function HomeClient({ user }: HomeClientProps) {
         <aside className="status-panel" aria-label="Resumen de integración">
           <span className="pulse" />
           <strong>Prueba inmediata</strong>
-          <code>{API_BASE_URL}/github/:username</code>
+          <code>{API_BASE_URL}/github/import</code>
           <p>
-            Genera una vista previa pública sin autenticación. Con email puedes
-            guardar evidencias y continuar.
+            Preview pública: envía
+            <code>{`{ username, preview: true }`}</code> y no persiste datos.
+            Con email + cuenta conectada puedes guardar evidencias y verificar.
           </p>
         </aside>
       </section>

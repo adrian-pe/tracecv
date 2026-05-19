@@ -38,16 +38,18 @@ type GitHubErrorPayload = {
   message?: string
 }
 
-function createGitHubHeaders() {
+function createGitHubHeaders(accessToken?: string | null) {
+  const token = accessToken?.trim() || GITHUB_TOKEN
+
   return {
     Accept: "application/vnd.github.v3+json",
-    ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
 }
 
-async function requestGitHub<T>(path: string): Promise<T> {
+async function requestGitHub<T>(path: string, accessToken?: string | null): Promise<T> {
   const response = await fetch(`${GITHUB_API_BASE_URL}${path}`, {
-    headers: createGitHubHeaders(),
+    headers: createGitHubHeaders(accessToken),
     next: { revalidate: 60 },
   })
 
@@ -69,10 +71,12 @@ async function requestGitHub<T>(path: string): Promise<T> {
 
 export async function fetchUserProfile(
   username: string,
+  accessToken?: string | null,
 ): Promise<GitHubProfile> {
   try {
     return await requestGitHub<GitHubProfile>(
       `/users/${encodeURIComponent(username)}`,
+      accessToken,
     )
   } catch (error) {
     if (
@@ -88,19 +92,22 @@ export async function fetchUserProfile(
 
 export async function fetchUserRepositories(
   username: string,
+  accessToken?: string | null,
 ): Promise<GitHubRepository[]> {
   return requestGitHub<GitHubRepository[]>(
     `/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&direction=desc`,
+    accessToken,
   )
 }
 
 export async function enrichGitHubData(
   username: string,
   userId: string | null,
+  accessToken?: string | null,
 ): Promise<EnrichedGitHubData> {
   const [profile, repositories] = await Promise.all([
-    fetchUserProfile(username),
-    fetchUserRepositories(username),
+    fetchUserProfile(username, accessToken),
+    fetchUserRepositories(username, accessToken),
   ])
 
   const languages = new Set<string>()
